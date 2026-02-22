@@ -144,8 +144,8 @@
                                     <Border Canvas.Left="-9" Canvas.Top="218" Width="155" Height="163"
                                             Background="#30000000" CornerRadius="8" HorizontalAlignment="Left" VerticalAlignment="Top">
                                         <Grid VerticalAlignment="Bottom">
-                                            <Rectangle Fill="#CCFF9800" RadiusX="6" RadiusY="6"
-                                                       Width="92" HorizontalAlignment="Center"
+                                            <Rectangle Fill="#40FF9800" RadiusX="6" RadiusY="6"
+                                                       Width="155" HorizontalAlignment="Center"
                                                        VerticalAlignment="Bottom"
                                                        Height="{Binding LeftTrigger,
                                                            Converter={StaticResource NormToTriggerHeightConverter},
@@ -157,8 +157,8 @@
                                     <Border Canvas.Left="631" Canvas.Top="218" Width="155" Height="163"
                                             Background="#30000000" CornerRadius="8" HorizontalAlignment="Left" VerticalAlignment="Top">
                                         <Grid VerticalAlignment="Bottom">
-                                            <Rectangle Fill="#CCFF9800" RadiusX="6" RadiusY="6"
-                                                       Width="92" HorizontalAlignment="Center"
+                                            <Rectangle Fill="#40FF9800" RadiusX="6" RadiusY="6"
+                                                       Width="155" HorizontalAlignment="Center"
                                                        VerticalAlignment="Bottom"
                                                        Height="{Binding RightTrigger,
                                                            Converter={StaticResource NormToTriggerHeightConverter},
@@ -177,16 +177,8 @@
                                             Opacity="{Binding RightShoulder, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6' }"/>
 
                                     <!-- LB bumper highlight -->
-                                    <Border Canvas.Left="151" Canvas.Top="386"Canvas.Top="382" Width="140" Height="70"
-                                            CornerRadius="10" Background="#FF607D8B"
-                                            Opacity="{Binding LeftShoulder,
-                                                Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Center"HorizontalAlignment="Center" VerticalAlignment="Top"VerticalAlignment="Top"/>
 
                                     <!-- RB bumper highlight -->
-                                    <Border Canvas.Left="477" Canvas.Top="280" Width="140" Height="70"
-                                            CornerRadius="10" Background="#FF607D8B"
-                                            Opacity="{Binding RightShoulder,
-                                                Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
 
                                 </Canvas>
                             </Grid>
@@ -201,12 +193,15 @@
                                 <Canvas Width="768" Height="588">
 
                                     <!-- ── LEFT STICK ── -->
-                                    <Canvas Canvas.Left="190" Canvas.Top="158" Width="84" Height="84" ClipToBounds="True" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                    <Canvas Canvas.Left="190" Canvas.Top="158" Width="84" Height="84" ClipToBounds="True">
                                         <Ellipse Width="84" Height="84" Fill="#40000000"
-                                                 Stroke="#60FFFFFF" StrokeThickness="1.5" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-                                        <Ellipse Width="14" Height="14" Fill="#FF2196F3"
+                                                 Stroke="#60FFFFFF" StrokeThickness="1.5"/>
+                                        <Ellipse Width="45" Height="45" Fill="#FF2196F3"
                                                  Stroke="#FF1976D2" StrokeThickness="1.5"
-                                                 Canvas.Top="-76" HorizontalAlignment="Center" VerticalAlignment="Top" Canvas.Left="-37"/>
+                                                 Canvas.Left="{Binding ThumbLX,
+                                                     Converter={StaticResource NormToCanvasConverter}, ConverterParameter='84,45'}"
+                                                 Canvas.Top="{Binding ThumbLY,
+                                                     Converter={StaticResource NormToCanvasConverter}, ConverterParameter='84,45'}"/>
                                     </Canvas>
                                     <!-- LS click glow -->
                                     <Ellipse Canvas.Left="190" Canvas.Top="158" Width="84" Height="84"
@@ -217,13 +212,13 @@
                                     <!-- ── RIGHT STICK ── -->
                                     <Canvas Canvas.Left="421" Canvas.Top="250" Width="84" Height="84" ClipToBounds="True">
                                         <Ellipse Width="84" Height="84" Fill="#40000000"
-                                                 Stroke="#60FFFFFF" StrokeThickness="1.5" Canvas.Left="15" Canvas.Top="-85"/>
-                                        <Ellipse Width="14" Height="14" Fill="#FF2196F3"
+                                                 Stroke="#60FFFFFF" StrokeThickness="1.5"/>
+                                        <Ellipse Width="45" Height="45" Fill="#FF2196F3"
                                                  Stroke="#FF1976D2" StrokeThickness="1.5"
                                                  Canvas.Left="{Binding ThumbRX,
-                                                     Converter={StaticResource NormToCanvasConverter}, ConverterParameter=84}"
+                                                     Converter={StaticResource NormToCanvasConverter}, ConverterParameter='84,45'}"
                                                  Canvas.Top="{Binding ThumbRY,
-                                                     Converter={StaticResource NormToCanvasConverter}, ConverterParameter=84}"/>
+                                                     Converter={StaticResource NormToCanvasConverter}, ConverterParameter='84,45'}"/>
                                     </Canvas>
                                     <!-- RS click glow -->
                                     <Ellipse Canvas.Left="421" Canvas.Top="250" Width="84" Height="84"
@@ -282,16 +277,16 @@
                                                  Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
 
                                     <!-- View (Back) -->
-                                    <Border Canvas.Left="327" Canvas.Top="192" Width="26" Height="16"
-                                            CornerRadius="4" Background="#FF607D8B"
-                                            Opacity="{Binding ButtonBack,
-                                                Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                    <Ellipse Canvas.Left="327" Canvas.Top="188" Width="26" Height="26"
+                                             Fill="#FF607D8B"
+                                             Opacity="{Binding ButtonBack,
+                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}"/>
 
                                     <!-- Menu (Start) -->
-                                    <Border Canvas.Left="415" Canvas.Top="192" Width="26" Height="16"
-                                            CornerRadius="4" Background="#FF607D8B"
-                                            Opacity="{Binding ButtonStart,
-                                                Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+                                    <Ellipse Canvas.Left="415" Canvas.Top="188" Width="26" Height="26"
+                                             Fill="#FF607D8B"
+                                             Opacity="{Binding ButtonStart,
+                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}"/>
 
                                 </Canvas>
                             </Grid>
@@ -334,7 +329,7 @@
                                                    ConverterParameter=240}"/>
                                 </Border>
                             </StackPanel>
-                        </Grid>                       </Grid>
+                        </Grid>
 
                     </StackPanel>
                 </ScrollViewer>
@@ -610,7 +605,7 @@
                                                 </TranslateTransform.Y>
                                             </TranslateTransform>
                                         </Ellipse.RenderTransform>
-                                        <Canvas.Left>100</Canvas.left>
+                                        <Canvas.Left>100</Canvas.Left>
                                         <Canvas.Top>100</Canvas.Top>
                                     </Ellipse>
                                     <!-- Crosshair -->
@@ -969,6 +964,6 @@
                     </ScrollViewer>
                 </Grid>
             </TabItem>
-        dd                 </TabControl>
+        </TabControl>
     </Grid>
 </UserControl>
