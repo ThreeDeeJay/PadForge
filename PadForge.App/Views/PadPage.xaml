@@ -129,256 +129,215 @@
 
             <!-- ─── TAB 0: Controller ─── -->
             <TabItem Header="Controller">
-                <Viewbox Stretch="Uniform" Margin="8" MaxWidth="700" MaxHeight="500"
-                         HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Canvas Width="450" Height="300" Background="Transparent">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel HorizontalAlignment="Center">
 
                         <!-- ══════════════════════════════════════
-                             CONTROLLER BODY
+                             TOP VIEW: Triggers + Bumpers
                              ══════════════════════════════════════ -->
-                        <Border Canvas.Left="75" Canvas.Top="60" Width="300" Height="180"
-                                Background="#FF2D2D30" CornerRadius="20"
-                                BorderBrush="#FF3F3F46" BorderThickness="2"/>
+                        <Viewbox Stretch="Uniform" MaxWidth="700" MaxHeight="220" Margin="8,8,8,2">
+                            <Grid Width="768" Height="432">
+                                <Image Source="/Resources/Xbox Series Controller - Top.png" Stretch="Fill" Width="1280" Margin="-250,-82,-262,-206" Height="720"/>
+                                <Canvas Width="768" Height="432">
 
-                        <!-- Grip bumps -->
-                        <Border Canvas.Left="55" Canvas.Top="140" Width="50" Height="100"
-                                Background="#FF2D2D30" CornerRadius="20,0,0,20"
-                                BorderBrush="#FF3F3F46" BorderThickness="2,2,0,2"/>
-                        <Border Canvas.Left="345" Canvas.Top="140" Width="50" Height="100"
-                                Background="#FF2D2D30" CornerRadius="0,20,20,0"
-                                BorderBrush="#FF3F3F46" BorderThickness="0,2,2,2"/>
+                                    <!-- LT trigger fill -->
+                                    <Border Canvas.Left="-9" Canvas.Top="218" Width="155" Height="163"
+                                            Background="#30000000" CornerRadius="8" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                        <Grid VerticalAlignment="Bottom">
+                                            <Rectangle Fill="#CCFF9800" RadiusX="6" RadiusY="6"
+                                                       Width="92" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Bottom"
+                                                       Height="{Binding LeftTrigger,
+                                                           Converter={StaticResource NormToTriggerHeightConverter},
+                                                           ConverterParameter=196}"/>
+                                        </Grid>
+                                    </Border>
 
-                        <!-- ══════════════════════════════════════
-                             LEFT TRIGGER (LT)
-                             ══════════════════════════════════════ -->
-                        <Border Canvas.Left="100" Canvas.Top="20" Width="40" Height="45"
-                                Background="#FF1E1E21" CornerRadius="6"
-                                BorderBrush="#FF3F3F46" BorderThickness="1">
-                            <Grid VerticalAlignment="Bottom">
-                                <Rectangle Fill="#FFFF9800" RadiusX="4" RadiusY="4"
-                                           Width="36" HorizontalAlignment="Center"
-                                           VerticalAlignment="Bottom"
-                                           Height="{Binding LeftTrigger,
-                                               Converter={StaticResource NormToTriggerHeightConverter},
-                                               ConverterParameter=40}"/>
+                                    <!-- RT trigger fill -->
+                                    <Border Canvas.Left="631" Canvas.Top="218" Width="155" Height="163"
+                                            Background="#30000000" CornerRadius="8" HorizontalAlignment="Left" VerticalAlignment="Top">
+                                        <Grid VerticalAlignment="Bottom">
+                                            <Rectangle Fill="#CCFF9800" RadiusX="6" RadiusY="6"
+                                                       Width="92" HorizontalAlignment="Center"
+                                                       VerticalAlignment="Bottom"
+                                                       Height="{Binding RightTrigger,
+                                                           Converter={StaticResource NormToTriggerHeightConverter},
+                                                           ConverterParameter=196}"/>
+                                        </Grid>
+                                    </Border>
+
+                                    <!-- Left shoulder rectangle -->
+                                    <Border Canvas.Left="-1" Canvas.Top="382" Width="236" Height="120" CornerRadius="10"
+                                            Background="#FF607D8B"
+                                            Opacity="{Binding LeftShoulder, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6' }"/>
+
+                                    <!-- Right shoulder rectangle -->
+                                    <Border Canvas.Left="545" Canvas.Top="382" Width="236" Height="120" CornerRadius="10"
+                                            Background="#FF607D8B"
+                                            Opacity="{Binding RightShoulder, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6' }"/>
+
+                                    <!-- LB bumper highlight -->
+                                    <Border Canvas.Left="151" Canvas.Top="386"Canvas.Top="382" Width="140" Height="70"
+                                            CornerRadius="10" Background="#FF607D8B"
+                                            Opacity="{Binding LeftShoulder,
+                                                Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Center"HorizontalAlignment="Center" VerticalAlignment="Top"VerticalAlignment="Top"/>
+
+                                    <!-- RB bumper highlight -->
+                                    <Border Canvas.Left="477" Canvas.Top="280" Width="140" Height="70"
+                                            CornerRadius="10" Background="#FF607D8B"
+                                            Opacity="{Binding RightShoulder,
+                                                Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+
+                                </Canvas>
                             </Grid>
-                        </Border>
-                        <TextBlock Canvas.Left="108" Canvas.Top="24" Text="LT"
-                                   FontSize="10" Foreground="#FF888888"/>
+                        </Viewbox>
 
                         <!-- ══════════════════════════════════════
-                             RIGHT TRIGGER (RT)
+                             FRONT VIEW: Sticks, Buttons, D-Pad, Center
                              ══════════════════════════════════════ -->
-                        <Border Canvas.Left="310" Canvas.Top="20" Width="40" Height="45"
-                                Background="#FF1E1E21" CornerRadius="6"
-                                BorderBrush="#FF3F3F46" BorderThickness="1">
-                            <Grid VerticalAlignment="Bottom">
-                                <Rectangle Fill="#FFFF9800" RadiusX="4" RadiusY="4"
-                                           Width="36" HorizontalAlignment="Center"
-                                           VerticalAlignment="Bottom"
-                                           Height="{Binding RightTrigger,
-                                               Converter={StaticResource NormToTriggerHeightConverter},
-                                               ConverterParameter=40}"/>
+                        <Viewbox Stretch="Uniform" MaxWidth="700" Margin="8,2,8,4">
+                            <Grid Width="768" Height="588">
+                                <Image Source="/Resources/Xbox Series Controller - Front.png" Stretch="Fill" RenderTransformOrigin="0.494,0.495"/>
+                                <Canvas Width="768" Height="588">
+
+                                    <!-- ── LEFT STICK ── -->
+                                    <Canvas Canvas.Left="190" Canvas.Top="158" Width="84" Height="84" ClipToBounds="True" HorizontalAlignment="Left" VerticalAlignment="Center">
+                                        <Ellipse Width="84" Height="84" Fill="#40000000"
+                                                 Stroke="#60FFFFFF" StrokeThickness="1.5" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                        <Ellipse Width="14" Height="14" Fill="#FF2196F3"
+                                                 Stroke="#FF1976D2" StrokeThickness="1.5"
+                                                 Canvas.Top="-76" HorizontalAlignment="Center" VerticalAlignment="Top" Canvas.Left="-37"/>
+                                    </Canvas>
+                                    <!-- LS click glow -->
+                                    <Ellipse Canvas.Left="190" Canvas.Top="158" Width="84" Height="84"
+                                             Fill="Transparent" Stroke="#FF2196F3" StrokeThickness="3"
+                                             Opacity="{Binding LeftThumbButton,
+                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.7'}"/>
+
+                                    <!-- ── RIGHT STICK ── -->
+                                    <Canvas Canvas.Left="421" Canvas.Top="250" Width="84" Height="84" ClipToBounds="True">
+                                        <Ellipse Width="84" Height="84" Fill="#40000000"
+                                                 Stroke="#60FFFFFF" StrokeThickness="1.5" Canvas.Left="15" Canvas.Top="-85"/>
+                                        <Ellipse Width="14" Height="14" Fill="#FF2196F3"
+                                                 Stroke="#FF1976D2" StrokeThickness="1.5"
+                                                 Canvas.Left="{Binding ThumbRX,
+                                                     Converter={StaticResource NormToCanvasConverter}, ConverterParameter=84}"
+                                                 Canvas.Top="{Binding ThumbRY,
+                                                     Converter={StaticResource NormToCanvasConverter}, ConverterParameter=84}"/>
+                                    </Canvas>
+                                    <!-- RS click glow -->
+                                    <Ellipse Canvas.Left="421" Canvas.Top="250" Width="84" Height="84"
+                                             Fill="Transparent" Stroke="#FF2196F3" StrokeThickness="3"
+                                             Opacity="{Binding RightThumbButton,
+                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.7'}"/>
+
+                                    <!-- ── D-PAD DIRECTION HIGHLIGHTS ── -->
+                                    <Rectangle Canvas.Left="291" Canvas.Top="255" Width="30" Height="30"
+                                               Fill="#FF4CAF50" RadiusX="3" RadiusY="3"
+                                               Opacity="{Binding DPadUp,
+                                                   Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.6'}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+                                    <Rectangle Canvas.Left="291" Canvas.Top="314" Width="30" Height="30"
+                                               Fill="#FF4CAF50" RadiusX="3" RadiusY="3"
+                                               Opacity="{Binding DPadDown,
+                                                   Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.6'}" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                                    <Rectangle Canvas.Left="260" Canvas.Top="284" Width="30" Height="30"
+                                               Fill="#FF4CAF50" RadiusX="3" RadiusY="3"
+                                               Opacity="{Binding DPadLeft,
+                                                   Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.6'}" HorizontalAlignment="Left" VerticalAlignment="Top"/>
+                                    <Rectangle Canvas.Left="321" Canvas.Top="284" Width="30" Height="30"
+                                               Fill="#FF4CAF50" RadiusX="3" RadiusY="3"
+                                               Opacity="{Binding DPadRight,
+                                                   Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.6'}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+
+                                    <!-- ── ABXY BUTTONS ── -->
+                                    <!-- A (bottom, green) -->
+                                    <Ellipse Canvas.Left="517" Canvas.Top="222" Width="40" Height="40"
+                                             Fill="#FF4CAF50"
+                                             Opacity="{Binding ButtonA,
+                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+
+                                    <!-- B (right, red) -->
+                                    <Ellipse Canvas.Left="558" Canvas.Top="184" Width="40" Height="40"
+                                             Fill="#FFF44336"
+                                             Opacity="{Binding ButtonB,
+                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+
+                                    <!-- X (left, blue) -->
+                                    <Ellipse Canvas.Left="477" Canvas.Top="182" Width="40" Height="40"
+                                             Fill="#FF2196F3"
+                                             Opacity="{Binding ButtonX,
+                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+
+                                    <!-- Y (top, yellow) -->
+                                    <Ellipse Canvas.Left="517" Canvas.Top="143" Width="40" Height="40"
+                                             Fill="#FFFFEB3B"
+                                             Opacity="{Binding ButtonY,
+                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+
+                                    <!-- ── CENTER BUTTONS ── -->
+                                    <!-- Guide (Xbox logo) -->
+                                    <Ellipse Canvas.Left="360" Canvas.Top="116" Width="50" Height="50"
+                                             Fill="#FF7B1FA2"
+                                             Opacity="{Binding ButtonGuide,
+                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+
+                                    <!-- View (Back) -->
+                                    <Border Canvas.Left="327" Canvas.Top="192" Width="26" Height="16"
+                                            CornerRadius="4" Background="#FF607D8B"
+                                            Opacity="{Binding ButtonBack,
+                                                Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+
+                                    <!-- Menu (Start) -->
+                                    <Border Canvas.Left="415" Canvas.Top="192" Width="26" Height="16"
+                                            CornerRadius="4" Background="#FF607D8B"
+                                            Opacity="{Binding ButtonStart,
+                                                Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+
+                                </Canvas>
                             </Grid>
-                        </Border>
-                        <TextBlock Canvas.Left="318" Canvas.Top="24" Text="RT"
-                                   FontSize="10" Foreground="#FF888888"/>
-
-                        <!-- ══════════════════════════════════════
-                             LEFT BUMPER (LB)
-                             ══════════════════════════════════════ -->
-                        <Border Canvas.Left="100" Canvas.Top="62" Width="65" Height="22"
-                                CornerRadius="8" BorderBrush="#FF555555" BorderThickness="1.5"
-                                Opacity="{Binding LeftShoulder,
-                                    Converter={StaticResource BoolToOpacityConverter}}"
-                                Background="#FF607D8B"/>
-                        <TextBlock Canvas.Left="120" Canvas.Top="65" Text="LB"
-                                   FontSize="10" Foreground="White" FontWeight="SemiBold"
-                                   Opacity="{Binding LeftShoulder,
-                                       Converter={StaticResource BoolToOpacityConverter}}"/>
-
-                        <!-- ══════════════════════════════════════
-                             RIGHT BUMPER (RB)
-                             ══════════════════════════════════════ -->
-                        <Border Canvas.Left="285" Canvas.Top="62" Width="65" Height="22"
-                                CornerRadius="8" BorderBrush="#FF555555" BorderThickness="1.5"
-                                Opacity="{Binding RightShoulder,
-                                    Converter={StaticResource BoolToOpacityConverter}}"
-                                Background="#FF607D8B"/>
-                        <TextBlock Canvas.Left="305" Canvas.Top="65" Text="RB"
-                                   FontSize="10" Foreground="White" FontWeight="SemiBold"
-                                   Opacity="{Binding RightShoulder,
-                                       Converter={StaticResource BoolToOpacityConverter}}"/>
-
-                        <!-- ══════════════════════════════════════
-                             LEFT STICK — circle with moving dot
-                             ══════════════════════════════════════ -->
-                        <Canvas Canvas.Left="125" Canvas.Top="115" Width="70" Height="70" ClipToBounds="True">
-                            <Ellipse Width="70" Height="70" Fill="#FF1E1E21"
-                                     Stroke="#FF555555" StrokeThickness="1.5"/>
-                            <Ellipse Width="14" Height="14" Fill="#FF2196F3"
-                                     Stroke="#FF1976D2" StrokeThickness="1.5"
-                                     Canvas.Left="{Binding ThumbLX,
-                                         Converter={StaticResource NormToCanvasConverter}, ConverterParameter=70}"
-                                     Canvas.Top="{Binding ThumbLY,
-                                         Converter={StaticResource NormToCanvasConverter}, ConverterParameter=70}"/>
-                        </Canvas>
-                        <!-- LS click glow -->
-                        <Ellipse Canvas.Left="125" Canvas.Top="115" Width="70" Height="70"
-                                 Fill="Transparent" Stroke="#FF2196F3" StrokeThickness="2"
-                                 Opacity="{Binding LeftThumbButton,
-                                     Converter={StaticResource BoolToOpacityConverter}, ConverterParameter=0}"/>
-
-                        <!-- ══════════════════════════════════════
-                             RIGHT STICK — circle with moving dot
-                             ══════════════════════════════════════ -->
-                        <Canvas Canvas.Left="275" Canvas.Top="155" Width="70" Height="70" ClipToBounds="True">
-                            <Ellipse Width="70" Height="70" Fill="#FF1E1E21"
-                                     Stroke="#FF555555" StrokeThickness="1.5"/>
-                            <Ellipse Width="14" Height="14" Fill="#FF2196F3"
-                                     Stroke="#FF1976D2" StrokeThickness="1.5"
-                                     Canvas.Left="{Binding ThumbRX,
-                                         Converter={StaticResource NormToCanvasConverter}, ConverterParameter=70}"
-                                     Canvas.Top="{Binding ThumbRY,
-                                         Converter={StaticResource NormToCanvasConverter}, ConverterParameter=70}"/>
-                        </Canvas>
-                        <!-- RS click glow -->
-                        <Ellipse Canvas.Left="275" Canvas.Top="155" Width="70" Height="70"
-                                 Fill="Transparent" Stroke="#FF2196F3" StrokeThickness="2"
-                                 Opacity="{Binding RightThumbButton,
-                                     Converter={StaticResource BoolToOpacityConverter}, ConverterParameter=0}"/>
-
-                        <!-- ══════════════════════════════════════
-                             D-PAD
-                             ══════════════════════════════════════ -->
-                        <!-- Base cross -->
-                        <Rectangle Canvas.Left="173" Canvas.Top="183" Width="18" Height="50"
-                                   Fill="#FF3C3C3C" RadiusX="3" RadiusY="3"
-                                   Stroke="#FF555555" StrokeThickness="1"/>
-                        <Rectangle Canvas.Left="157" Canvas.Top="199" Width="50" Height="18"
-                                   Fill="#FF3C3C3C" RadiusX="3" RadiusY="3"
-                                   Stroke="#FF555555" StrokeThickness="1"/>
-                        <!-- Direction highlights -->
-                        <Rectangle Canvas.Left="175" Canvas.Top="185" Width="14" Height="16"
-                                   Fill="#FF4CAF50" RadiusX="2" RadiusY="2"
-                                   Opacity="{Binding DPadUp,
-                                       Converter={StaticResource BoolToOpacityConverter}, ConverterParameter=0}"/>
-                        <Rectangle Canvas.Left="175" Canvas.Top="215" Width="14" Height="16"
-                                   Fill="#FF4CAF50" RadiusX="2" RadiusY="2"
-                                   Opacity="{Binding DPadDown,
-                                       Converter={StaticResource BoolToOpacityConverter}, ConverterParameter=0}"/>
-                        <Rectangle Canvas.Left="159" Canvas.Top="201" Width="16" Height="14"
-                                   Fill="#FF4CAF50" RadiusX="2" RadiusY="2"
-                                   Opacity="{Binding DPadLeft,
-                                       Converter={StaticResource BoolToOpacityConverter}, ConverterParameter=0}"/>
-                        <Rectangle Canvas.Left="189" Canvas.Top="201" Width="16" Height="14"
-                                   Fill="#FF4CAF50" RadiusX="2" RadiusY="2"
-                                   Opacity="{Binding DPadRight,
-                                       Converter={StaticResource BoolToOpacityConverter}, ConverterParameter=0}"/>
-
-                        <!-- ══════════════════════════════════════
-                             ABXY BUTTONS
-                             ══════════════════════════════════════ -->
-                        <!-- A (bottom, green) -->
-                        <Ellipse Canvas.Left="340" Canvas.Top="138" Width="28" Height="28"
-                                 Fill="#FF4CAF50" Stroke="#FF388E3C" StrokeThickness="1.5"
-                                 Opacity="{Binding ButtonA,
-                                     Converter={StaticResource BoolToOpacityConverter}}"/>
-                        <TextBlock Canvas.Left="349" Canvas.Top="142" Text="A"
-                                   FontSize="12" FontWeight="Bold" Foreground="White"
-                                   Opacity="{Binding ButtonA,
-                                       Converter={StaticResource BoolToOpacityConverter}}"/>
-
-                        <!-- B (right, red) -->
-                        <Ellipse Canvas.Left="365" Canvas.Top="113" Width="28" Height="28"
-                                 Fill="#FFF44336" Stroke="#FFD32F2F" StrokeThickness="1.5"
-                                 Opacity="{Binding ButtonB,
-                                     Converter={StaticResource BoolToOpacityConverter}}"/>
-                        <TextBlock Canvas.Left="374" Canvas.Top="117" Text="B"
-                                   FontSize="12" FontWeight="Bold" Foreground="White"
-                                   Opacity="{Binding ButtonB,
-                                       Converter={StaticResource BoolToOpacityConverter}}"/>
-
-                        <!-- X (left, blue) -->
-                        <Ellipse Canvas.Left="315" Canvas.Top="113" Width="28" Height="28"
-                                 Fill="#FF2196F3" Stroke="#FF1976D2" StrokeThickness="1.5"
-                                 Opacity="{Binding ButtonX,
-                                     Converter={StaticResource BoolToOpacityConverter}}"/>
-                        <TextBlock Canvas.Left="324" Canvas.Top="117" Text="X"
-                                   FontSize="12" FontWeight="Bold" Foreground="White"
-                                   Opacity="{Binding ButtonX,
-                                       Converter={StaticResource BoolToOpacityConverter}}"/>
-
-                        <!-- Y (top, yellow) -->
-                        <Ellipse Canvas.Left="340" Canvas.Top="88" Width="28" Height="28"
-                                 Fill="#FFFFEB3B" Stroke="#FFFBC02D" StrokeThickness="1.5"
-                                 Opacity="{Binding ButtonY,
-                                     Converter={StaticResource BoolToOpacityConverter}}"/>
-                        <TextBlock Canvas.Left="349" Canvas.Top="92" Text="Y"
-                                   FontSize="12" FontWeight="Bold" Foreground="White"
-                                   Opacity="{Binding ButtonY,
-                                       Converter={StaticResource BoolToOpacityConverter}}"/>
-
-                        <!-- ══════════════════════════════════════
-                             CENTER BUTTONS: Back, Guide, Start
-                             ══════════════════════════════════════ -->
-                        <!-- Back -->
-                        <Border Canvas.Left="195" Canvas.Top="105" Width="30" Height="18"
-                                CornerRadius="4" BorderBrush="#FF555555" BorderThickness="1"
-                                Background="#FF424242"
-                                Opacity="{Binding ButtonBack,
-                                    Converter={StaticResource BoolToOpacityConverter}}"/>
-                        <TextBlock Canvas.Left="198" Canvas.Top="107" Text="Back"
-                                   FontSize="8" Foreground="White"
-                                   Opacity="{Binding ButtonBack,
-                                       Converter={StaticResource BoolToOpacityConverter}}"/>
-
-                        <!-- Guide (center circle) -->
-                        <Ellipse Canvas.Left="218" Canvas.Top="84" Width="20" Height="20"
-                                 Fill="#FF7B1FA2" Stroke="#FF6A1B9A" StrokeThickness="1.5"
-                                 Opacity="{Binding ButtonGuide,
-                                     Converter={StaticResource BoolToOpacityConverter}}"/>
-
-                        <!-- Start -->
-                        <Border Canvas.Left="232" Canvas.Top="105" Width="30" Height="18"
-                                CornerRadius="4" BorderBrush="#FF555555" BorderThickness="1"
-                                Background="#FF424242"
-                                Opacity="{Binding ButtonStart,
-                                    Converter={StaticResource BoolToOpacityConverter}}"/>
-                        <TextBlock Canvas.Left="235" Canvas.Top="107" Text="Start"
-                                   FontSize="8" Foreground="White"
-                                   Opacity="{Binding ButtonStart,
-                                       Converter={StaticResource BoolToOpacityConverter}}"/>
+                        </Viewbox>
 
                         <!-- ══════════════════════════════════════
                              MOTOR ACTIVITY INDICATORS
                              ══════════════════════════════════════ -->
-                        <TextBlock Canvas.Left="85" Canvas.Top="260" Text="L Motor"
-                                   FontSize="9" Foreground="#FF888888"/>
-                        <Border Canvas.Left="85" Canvas.Top="274" Width="80" Height="10"
-                                Background="#FF1E1E21" CornerRadius="3"
-                                BorderBrush="#FF3F3F46" BorderThickness="1">
-                            <Rectangle Fill="#FF9C27B0" RadiusX="2" RadiusY="2"
-                                       HorizontalAlignment="Left"
-                                       Width="{Binding LeftMotorDisplay,
-                                           Converter={StaticResource NormToTriggerHeightConverter},
-                                           ConverterParameter=76}"/>
-                        </Border>
+                        <Grid MaxWidth="500" Margin="8,0,8,8" HorizontalAlignment="Center">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="24"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
 
-                        <TextBlock Canvas.Left="285" Canvas.Top="260" Text="R Motor"
-                                   FontSize="9" Foreground="#FF888888"/>
-                        <Border Canvas.Left="285" Canvas.Top="274" Width="80" Height="10"
-                                Background="#FF1E1E21" CornerRadius="3"
-                                BorderBrush="#FF3F3F46" BorderThickness="1">
-                            <Rectangle Fill="#FF9C27B0" RadiusX="2" RadiusY="2"
-                                       HorizontalAlignment="Left"
-                                       Width="{Binding RightMotorDisplay,
-                                           Converter={StaticResource NormToTriggerHeightConverter},
-                                           ConverterParameter=76}"/>
-                        </Border>
+                            <StackPanel Grid.Column="0">
+                                <TextBlock Text="L Motor" FontSize="10"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                           HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                                <Border Height="10" Background="#FF1E1E21" CornerRadius="3"
+                                        BorderBrush="#FF3F3F46" BorderThickness="1">
+                                    <Rectangle Fill="#FF9C27B0" RadiusX="2" RadiusY="2"
+                                               HorizontalAlignment="Left"
+                                               Width="{Binding LeftMotorDisplay,
+                                                   Converter={StaticResource NormToTriggerHeightConverter},
+                                                   ConverterParameter=240}"/>
+                                </Border>
+                            </StackPanel>
 
-                    </Canvas>
-                </Viewbox>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="R Motor" FontSize="10"
+                                           Foreground="{DynamicResource TextFillColorSecondaryBrush}"
+                                           HorizontalAlignment="Center" Margin="0,0,0,2"/>
+                                <Border Height="10" Background="#FF1E1E21" CornerRadius="3"
+                                        BorderBrush="#FF3F3F46" BorderThickness="1">
+                                    <Rectangle Fill="#FF9C27B0" RadiusX="2" RadiusY="2"
+                                               HorizontalAlignment="Left"
+                                               Width="{Binding RightMotorDisplay,
+                                                   Converter={StaticResource NormToTriggerHeightConverter},
+                                                   ConverterParameter=240}"/>
+                                </Border>
+                            </StackPanel>
+                        </Grid>                       </Grid>
+
+                    </StackPanel>
+                </ScrollViewer>
             </TabItem>
 
             <!-- ─── TAB 1: Mappings ─── -->
@@ -651,7 +610,7 @@
                                                 </TranslateTransform.Y>
                                             </TranslateTransform>
                                         </Ellipse.RenderTransform>
-                                        <Canvas.Left>100</Canvas.Left>
+                                        <Canvas.Left>100</Canvas.left>
                                         <Canvas.Top>100</Canvas.Top>
                                     </Ellipse>
                                     <!-- Crosshair -->
@@ -1010,6 +969,6 @@
                     </ScrollViewer>
                 </Grid>
             </TabItem>
-        </TabControl>
+        dd                 </TabControl>
     </Grid>
 </UserControl>

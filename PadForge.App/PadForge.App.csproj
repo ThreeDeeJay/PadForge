@@ -19,6 +19,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Resource Include="Resources\Xbox Series Controller - Front.png" />
+    <Resource Include="Resources\Xbox Series Controller - Top.png" />
     <Content Include="Resources\PadForge.ico" />
     <!--
       SDL2.dll: Link="SDL2.dll" ensures the file is copied to the OUTPUT ROOT
