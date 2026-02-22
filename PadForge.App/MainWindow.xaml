@@ -1,0 +1,141 @@
+<Window x:Class="PadForge.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="http://schemas.modernwpf.com/2019"
+        xmlns:local="clr-namespace:PadForge"
+        xmlns:views="clr-namespace:PadForge.Views"
+        ui:WindowHelper.UseModernWindowStyle="True"
+        Title="{Binding Title}"
+        Height="720" Width="1100"
+        MinHeight="600" MinWidth="900"
+        WindowStartupLocation="CenterScreen">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ═══════════════════════════════════════════
+             Navigation View (left pane)
+             ═══════════════════════════════════════════ -->
+        <ui:NavigationView x:Name="NavView"
+                           PaneDisplayMode="Left"
+                           IsBackButtonVisible="Collapsed"
+                           IsSettingsVisible="True"
+                           SelectionChanged="NavView_SelectionChanged"
+                           PaneTitle="PadForge"
+                           OpenPaneLength="200">
+
+            <ui:NavigationView.MenuItems>
+                <ui:NavigationViewItem Content="Dashboard" Tag="Dashboard">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:SymbolIcon Symbol="Home"/>
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
+
+                <ui:NavigationViewItemSeparator/>
+
+                <ui:NavigationViewItem Content="Controller 1" Tag="Pad1">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:FontIcon Glyph="&#xE7FC;"/>
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
+
+                <ui:NavigationViewItem Content="Controller 2" Tag="Pad2">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:FontIcon Glyph="&#xE7FC;"/>
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
+
+                <ui:NavigationViewItem Content="Controller 3" Tag="Pad3">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:FontIcon Glyph="&#xE7FC;"/>
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
+
+                <ui:NavigationViewItem Content="Controller 4" Tag="Pad4">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:FontIcon Glyph="&#xE7FC;"/>
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
+
+                <ui:NavigationViewItemSeparator/>
+
+                <ui:NavigationViewItem Content="Devices" Tag="Devices">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:SymbolIcon Symbol="AllApps"/>
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
+            </ui:NavigationView.MenuItems>
+
+            <ui:NavigationView.FooterMenuItems>
+                <ui:NavigationViewItem Content="About" Tag="About">
+                    <ui:NavigationViewItem.Icon>
+                        <ui:SymbolIcon Symbol="Help"/>
+                    </ui:NavigationViewItem.Icon>
+                </ui:NavigationViewItem>
+            </ui:NavigationView.FooterMenuItems>
+
+            <!-- Content frame swapped by navigation -->
+            <Grid>
+                <views:DashboardPage x:Name="DashboardPageView" Visibility="Visible"/>
+                <views:PadPage x:Name="PadPageView" Visibility="Collapsed"/>
+                <views:DevicesPage x:Name="DevicesPageView" Visibility="Collapsed"/>
+                <views:SettingsPage x:Name="SettingsPageView" Visibility="Collapsed"/>
+                <views:AboutPage x:Name="AboutPageView" Visibility="Collapsed"/>
+            </Grid>
+
+        </ui:NavigationView>
+
+        <!-- ═══════════════════════════════════════════
+             Status Bar
+             ═══════════════════════════════════════════ -->
+        <Border Grid.Row="1"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                Padding="12,4">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Status text -->
+                <TextBlock Grid.Column="0"
+                           Text="{Binding StatusText}"
+                           VerticalAlignment="Center"
+                           Opacity="0.8"
+                           TextTrimming="CharacterEllipsis"/>
+
+                <!-- Devices count -->
+                <TextBlock Grid.Column="1"
+                           VerticalAlignment="Center"
+                           Margin="16,0"
+                           Opacity="0.7">
+                    <Run Text="{Binding ConnectedDeviceCount, Mode=OneWay}"/>
+                    <Run Text="device(s)"/>
+                </TextBlock>
+
+                <!-- Polling frequency -->
+                <TextBlock Grid.Column="2"
+                           VerticalAlignment="Center"
+                           Margin="16,0"
+                           Opacity="0.7">
+                    <Run Text="{Binding PollingFrequency, StringFormat='{}{0:F0} Hz', Mode=OneWay}"/>
+                </TextBlock>
+
+                <!-- Engine indicator -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal"
+                            VerticalAlignment="Center" Margin="16,0,0,0">
+                    <Ellipse Width="8" Height="8"
+                             Fill="{Binding IsEngineRunning, Converter={StaticResource BoolToColorConverter}}"
+                             Margin="0,0,6,0"/>
+                    <TextBlock Text="{Binding EngineStatusText}"
+                               Opacity="0.8"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,162 @@
+<UserControl x:Class="PadForge.Views.SettingsPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.modernwpf.com/2019">
+
+    <ScrollViewer Padding="24,16">
+        <StackPanel MaxWidth="700">
+
+            <TextBlock Text="Settings" Style="{StaticResource TitleTextBlockStyle}"
+                       Margin="0,0,0,20"/>
+
+            <!-- ═══ Appearance ═══ -->
+            <TextBlock Text="Appearance" Style="{StaticResource SubtitleTextBlockStyle}"
+                       Margin="0,0,0,12"/>
+            <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                    CornerRadius="8" Padding="16" Margin="0,0,0,20">
+                <StackPanel>
+                    <TextBlock Text="Theme" FontSize="13" Margin="0,0,0,6"/>
+                    <ComboBox SelectedIndex="{Binding SelectedThemeIndex}" Width="200">
+                        <ComboBoxItem Content="System Default"/>
+                        <ComboBoxItem Content="Light"/>
+                        <ComboBoxItem Content="Dark"/>
+                    </ComboBox>
+                </StackPanel>
+            </Border>
+
+            <!-- ═══ Engine ═══ -->
+            <TextBlock Text="Input Engine" Style="{StaticResource SubtitleTextBlockStyle}"
+                       Margin="0,0,0,12"/>
+            <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                    CornerRadius="8" Padding="16" Margin="0,0,0,20">
+                <StackPanel>
+                    <CheckBox Content="Auto-start engine on launch"
+                              IsChecked="{Binding AutoStartEngine}" Margin="0,0,0,8"/>
+                    <CheckBox Content="Continue polling when window loses focus"
+                              IsChecked="{Binding EnablePollingOnFocusLoss}" Margin="0,0,0,8"/>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Polling interval:" VerticalAlignment="Center"
+                                   Margin="0,0,8,0"/>
+                        <ui:NumberBox Value="{Binding PollingRateMs, Mode=TwoWay}"
+                                      Minimum="1" Maximum="16"
+                                      SpinButtonPlacementMode="Inline" Width="120"/>
+                        <TextBlock Text="ms" VerticalAlignment="Center" Margin="6,0,0,0"
+                                   Opacity="0.6"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- ═══ Window ═══ -->
+            <TextBlock Text="Window" Style="{StaticResource SubtitleTextBlockStyle}"
+                       Margin="0,0,0,12"/>
+            <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                    CornerRadius="8" Padding="16" Margin="0,0,0,20">
+                <StackPanel>
+                    <CheckBox Content="Minimize to system tray"
+                              IsChecked="{Binding MinimizeToTray}" Margin="0,0,0,8"/>
+                    <CheckBox Content="Start minimized"
+                              IsChecked="{Binding StartMinimized}"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ═══ ViGEmBus ═══ -->
+            <TextBlock Text="ViGEmBus Driver" Style="{StaticResource SubtitleTextBlockStyle}"
+                       Margin="0,0,0,12"/>
+            <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                    CornerRadius="8" Padding="16" Margin="0,0,0,20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8" Height="8"
+                                     Fill="{Binding IsViGEmInstalled, Converter={StaticResource BoolToColorConverter}}"
+                                     VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBlock Text="{Binding ViGEmStatusText}" FontWeight="SemiBold"/>
+                        </StackPanel>
+                        <TextBlock Text="{Binding ViGEmVersion}" FontSize="12"
+                                   Opacity="0.6" Margin="0,4,0,0"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                VerticalAlignment="Center">
+                        <Button Content="{Binding IsViGEmInstalled, Converter={StaticResource BoolToInstallTextConverter}}"
+                                Command="{Binding InstallViGEmCommand}"
+                                Visibility="{Binding IsViGEmInstalled, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"
+                                Margin="0,0,8,0"/>
+                        <Button Content="Uninstall"
+                                Command="{Binding UninstallViGEmCommand}"
+                                Visibility="{Binding IsViGEmInstalled, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- ═══ Settings File ═══ -->
+            <TextBlock Text="Settings File" Style="{StaticResource SubtitleTextBlockStyle}"
+                       Margin="0,0,0,12"/>
+            <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                    CornerRadius="8" Padding="16" Margin="0,0,0,20">
+                <StackPanel>
+                    <TextBlock Text="{Binding SettingsFilePath}" FontSize="12"
+                               FontFamily="Consolas" Opacity="0.7" TextWrapping="Wrap"
+                               Margin="0,0,0,12"/>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Save" Command="{Binding SaveCommand}"
+                                Margin="0,0,8,0"/>
+                        <Button Content="Reload" Command="{Binding ReloadCommand}"
+                                Margin="0,0,8,0"/>
+                        <Button Content="Reset to Defaults" Command="{Binding ResetCommand}"
+                                Margin="0,0,8,0"/>
+                        <Button Content="Open Folder" Command="{Binding OpenSettingsFolderCommand}"/>
+                    </StackPanel>
+
+                    <TextBlock Visibility="{Binding HasUnsavedChanges, Converter={StaticResource BoolToVisibilityConverter}}"
+                               Text="⚠ Unsaved changes" Foreground="Orange"
+                               FontSize="12" Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- ═══ Diagnostics ═══ -->
+            <TextBlock Text="Diagnostics" Style="{StaticResource SubtitleTextBlockStyle}"
+                       Margin="0,0,0,12"/>
+            <Border Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                    CornerRadius="8" Padding="16" Margin="0,0,0,20">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="140"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Text="App Version" FontSize="12" Opacity="0.6"/>
+                    <TextBlock Grid.Column="1" Text="{Binding ApplicationVersion}" FontSize="12"/>
+
+                    <TextBlock Grid.Row="1" Text=".NET Runtime" FontSize="12"
+                               Opacity="0.6" Margin="0,4,0,0"/>
+                    <TextBlock Grid.Row="1" Grid.Column="1"
+                               Text="{Binding RuntimeVersion}" FontSize="12" Margin="0,4,0,0"/>
+
+                    <TextBlock Grid.Row="2" Text="XInput Library" FontSize="12"
+                               Opacity="0.6" Margin="0,4,0,0"/>
+                    <TextBlock Grid.Row="2" Grid.Column="1"
+                               Text="{Binding XInputLibraryInfo}" FontSize="12" Margin="0,4,0,0"/>
+
+                    <TextBlock Grid.Row="3" Text="SDL Version" FontSize="12"
+                               Opacity="0.6" Margin="0,4,0,0"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1"
+                               Text="{Binding SdlVersion}" FontSize="12" Margin="0,4,0,0"/>
+                </Grid>
+            </Border>
+
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

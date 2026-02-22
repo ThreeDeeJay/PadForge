@@ -1,0 +1,51 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>PadForge</RootNamespace>
+    <AssemblyName>PadForge</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+
+    <Product>PadForge</Product>
+    <Company>PadForge</Company>
+    <Copyright>Copyright © PadForge Contributors</Copyright>
+    <Description>PadForge — Modern controller mapping application.</Description>
+    <ApplicationIcon>Resources\PadForge.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="Resources\SDL2\x64\SDL2.dll" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Resources\PadForge.ico" />
+    <Content Include="Resources\SDL2\x64\SDL2.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ModernWpfUI" Version="0.9.6" />
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+    <PackageReference Include="Nefarius.ViGEm.Client" Version="1.21.256" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\PadForge.Engine\PadForge.Engine.csproj" />
+  </ItemGroup>
+
+  <!--
+    SDL2.dll must be in the output directory next to the exe.
+    Place SDL2.dll in the PadForge.App project root folder and it will be copied automatically.
+    Download x64 SDL2.dll from https://github.com/libsdl-org/SDL/releases (SDL2, not SDL3).
+  -->
+  <ItemGroup>
+    <None Include="SDL2.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('SDL2.dll')" />
+  </ItemGroup>
+
+</Project>

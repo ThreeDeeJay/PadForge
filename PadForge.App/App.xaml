@@ -1,0 +1,27 @@
+<Application x:Class="PadForge.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.modernwpf.com/2019"
+             xmlns:conv="clr-namespace:PadForge.Converters"
+             StartupUri="MainWindow.xaml">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ui:ThemeResources />
+                <ui:XamlControlsResources />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Global Converters -->
+            <conv:BoolToColorConverter x:Key="BoolToColorConverter" />
+            <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter" />
+            <conv:AxisToPercentConverter x:Key="AxisToPercentConverter" />
+            <conv:PovToAngleConverter x:Key="PovToAngleConverter" />
+            <conv:NormToCanvasConverter x:Key="NormToCanvasConverter" />
+            <conv:StatusToColorConverter x:Key="StatusToColorConverter" />
+            <conv:BoolToInstallTextConverter x:Key="BoolToInstallTextConverter" />
+
+        </ResourceDictionary>
+    </Application.Resources>
+
+</Application>

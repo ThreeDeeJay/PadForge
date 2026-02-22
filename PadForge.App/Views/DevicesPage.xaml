@@ -1,0 +1,138 @@
+<UserControl x:Class="PadForge.Views.DevicesPage"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ui="http://schemas.modernwpf.com/2019"
+             xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <Grid Margin="24,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
+            <TextBlock Text="Devices" Style="{StaticResource TitleTextBlockStyle}"/>
+            <Button Content="Refresh" Margin="16,0,0,0"
+                    Command="{Binding RefreshCommand}"/>
+            <TextBlock VerticalAlignment="Center" Margin="16,0" Opacity="0.6">
+                <Run Text="{Binding OnlineCount, Mode=OneWay}"/>
+                <Run Text="online /"/>
+                <Run Text="{Binding TotalCount, Mode=OneWay}"/>
+                <Run Text="total"/>
+            </TextBlock>
+        </StackPanel>
+
+        <!-- Main content: Grid + Detail -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="320"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Device list -->
+            <DataGrid ItemsSource="{Binding Devices}"
+                      SelectedItem="{Binding SelectedDevice, Mode=TwoWay}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True" SelectionMode="Single"
+                      CanUserAddRows="False" CanUserDeleteRows="False"
+                      HeadersVisibility="Column"
+                      GridLinesVisibility="Horizontal"
+                      BorderThickness="1"
+                      Margin="0,0,12,0">
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="Name" Binding="{Binding DeviceName}" Width="*"/>
+                    <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="70"/>
+                    <DataGridTextColumn Header="Type" Binding="{Binding DeviceType}" Width="80"/>
+                    <DataGridTextColumn Header="VID" Binding="{Binding VendorIdHex}" Width="50"/>
+                    <DataGridTextColumn Header="PID" Binding="{Binding ProductIdHex}" Width="50"/>
+                    <DataGridTextColumn Header="Slot" Binding="{Binding AssignedSlotText}" Width="80"/>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- Detail panel -->
+            <Border Grid.Column="1"
+                    Background="{DynamicResource SystemControlBackgroundChromeMediumLowBrush}"
+                    CornerRadius="8" Padding="16">
+                <StackPanel Visibility="{Binding HasSelectedDevice, Converter={StaticResource BoolToVisibilityConverter}}">
+
+                    <TextBlock Text="{Binding SelectedDevice.DeviceName}"
+                               Style="{StaticResource SubtitleTextBlockStyle}"
+                               TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                    <!-- Identity -->
+                    <TextBlock FontSize="12" Opacity="0.7" Margin="0,0,0,2">
+                        <Run Text="Product:"/>
+                        <Run Text="{Binding SelectedDevice.ProductName, Mode=OneWay}"/>
+                    </TextBlock>
+                    <TextBlock FontSize="12" Opacity="0.7" Margin="0,0,0,2">
+                        <Run Text="VID:PID:"/>
+                        <Run Text="{Binding SelectedDevice.VendorIdHex, Mode=OneWay}"/>
+                        <Run Text=":"/>
+                        <Run Text="{Binding SelectedDevice.ProductIdHex, Mode=OneWay}"/>
+                    </TextBlock>
+                    <TextBlock FontSize="12" Opacity="0.7" Margin="0,0,0,2">
+                        <Run Text="Type:"/>
+                        <Run Text="{Binding SelectedDevice.DeviceType, Mode=OneWay}"/>
+                        <Run Text="{Binding SelectedDevice.IsXInput, Mode=OneWay, StringFormat=' (XInput: {0})'}"/>
+                    </TextBlock>
+                    <TextBlock FontSize="12" Opacity="0.6" TextWrapping="Wrap" Margin="0,0,0,8">
+                        <Run Text="{Binding SelectedDevice.CapabilitiesSummary, Mode=OneWay}"/>
+                    </TextBlock>
+
+                    <Separator Margin="0,4,0,8"/>
+
+                    <!-- Assign to slot -->
+                    <TextBlock Text="Assign to Slot" FontWeight="SemiBold"
+                               FontSize="13" Margin="0,0,0,6"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <Button Content="P1" Margin="0,0,4,0" MinWidth="36"
+                                Command="{Binding AssignToSlotCommand}">
+                            <Button.CommandParameter><sys:Int32>0</sys:Int32></Button.CommandParameter>
+                        </Button>
+                        <Button Content="P2" Margin="0,0,4,0" MinWidth="36"
+                                Command="{Binding AssignToSlotCommand}">
+                            <Button.CommandParameter><sys:Int32>1</sys:Int32></Button.CommandParameter>
+                        </Button>
+                        <Button Content="P3" Margin="0,0,4,0" MinWidth="36"
+                                Command="{Binding AssignToSlotCommand}">
+                            <Button.CommandParameter><sys:Int32>2</sys:Int32></Button.CommandParameter>
+                        </Button>
+                        <Button Content="P4" Margin="0,0,0,0" MinWidth="36"
+                                Command="{Binding AssignToSlotCommand}">
+                            <Button.CommandParameter><sys:Int32>3</sys:Int32></Button.CommandParameter>
+                        </Button>
+                    </StackPanel>
+
+                    <!-- Device management -->
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                        <Button Content="Remove Device" MinWidth="100"
+                                Command="{Binding RemoveDeviceCommand}"
+                                ToolTip="Remove this device and its settings"/>
+                    </StackPanel>
+
+                    <Separator Margin="0,4,0,8"/>
+
+                    <!-- Raw state -->
+                    <TextBlock Text="Raw Input State" FontWeight="SemiBold"
+                               FontSize="13" Margin="0,0,0,6"/>
+
+                    <TextBlock Text="Axes" FontSize="12" Opacity="0.6" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding RawAxisDisplay}" FontSize="11"
+                               FontFamily="Consolas" TextWrapping="Wrap"
+                               MaxHeight="120" Margin="0,0,0,8"/>
+
+                    <TextBlock Text="Buttons" FontSize="12" Opacity="0.6" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding RawButtonDisplay}" FontSize="11"
+                               FontFamily="Consolas" TextWrapping="Wrap"
+                               Margin="0,0,0,8"/>
+
+                    <TextBlock Text="POV Hats" FontSize="12" Opacity="0.6" Margin="0,0,0,2"/>
+                    <TextBlock Text="{Binding RawPovDisplay}" FontSize="11"
+                               FontFamily="Consolas" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

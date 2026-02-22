@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>PadForge.Engine</RootNamespace>
+    <AssemblyName>PadForge.Engine</AssemblyName>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <Product>PadForge</Product>
+    <Company>PadForge</Company>
+    <Copyright>Copyright © PadForge Contributors</Copyright>
+    <Description>PadForge input engine — SDL2, XInput, and ViGEmBus integration.</Description>
+  </PropertyGroup>
+
+</Project>

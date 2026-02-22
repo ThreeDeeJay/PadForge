@@ -1,0 +1,102 @@
+using System;
+using System.Collections.Generic;
+using PadForge.Engine;
+using PadForge.Engine.Data;
+
+namespace PadForge.Common.Input
+{
+    public partial class InputManager
+    {
+        // ─────────────────────────────────────────────
+        //  Step 4: CombineXiStates
+        //  Merges the mapped Gamepad states from all devices assigned to
+        //  each virtual controller slot (0–3) into a single combined state.
+        //
+        //  Combination rules:
+        //    - Buttons: OR (any device pressing a button activates it)
+        //    - Triggers: MAX (highest trigger value wins)
+        //    - Thumbsticks: largest-magnitude wins per axis
+        // ─────────────────────────────────────────────
+
+        /// <summary>
+        /// Step 4: For each of the 4 virtual controller slots, find all UserSettings
+        /// mapped to that slot and combine their XiState gamepads into a single
+        /// <see cref="CombinedXiStates"/> entry.
+        /// </summary>
+        private void CombineXiStates()
+        {
+            var settings = SettingsManager.UserSettings;
+            if (settings == null)
+                return;
+
+            for (int padIndex = 0; padIndex < MaxPads; padIndex++)
+            {
+                try
+                {
+                    List<UserSetting> slotSettings = settings.FindByPadIndex(padIndex);
+
+                    if (slotSettings == null || slotSettings.Count == 0)
+                    {
+                        CombinedXiStates[padIndex].Clear();
+                        continue;
+                    }
+
+                    if (slotSettings.Count == 1)
+                    {
+                        // Single device — no combination needed, direct copy.
+                        CombinedXiStates[padIndex] = slotSettings[0].XiState;
+                        continue;
+                    }
+
+                    // Multiple devices — merge all states.
+                    var combined = new Gamepad();
+
+                    foreach (var us in slotSettings)
+                    {
+                        var gp = us.XiState;
+                        MergeGamepad(ref combined, ref gp);
+                    }
+
+                    CombinedXiStates[padIndex] = combined;
+                }
+                catch (Exception ex)
+                {
+                    RaiseError($"Error combining states for pad {padIndex}", ex);
+                    CombinedXiStates[padIndex].Clear();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Merges a source Gamepad into a destination Gamepad using combination rules:
+        ///   Buttons  → OR
+        ///   Triggers → MAX
+        ///   Thumbs   → largest magnitude per axis
+        /// </summary>
+        /// <param name="dest">Destination gamepad (accumulated result).</param>
+        /// <param name="src">Source gamepad to merge in.</param>
+        private static void MergeGamepad(ref Gamepad dest, ref Gamepad src)
+        {
+            // Buttons: OR combination — any device can activate any button.
+            dest.Buttons |= src.Buttons;
+
+            // Triggers: take the higher value.
+            if (src.LeftTrigger > dest.LeftTrigger)
+                dest.LeftTrigger = src.LeftTrigger;
+            if (src.RightTrigger > dest.RightTrigger)
+                dest.RightTrigger = src.RightTrigger;
+
+            // Thumbsticks: largest absolute magnitude wins per axis.
+            // This allows, e.g., one device to control the left stick and another
+            // to control the right stick without interference.
+            if (Math.Abs(src.ThumbLX) > Math.Abs(dest.ThumbLX))
+                dest.ThumbLX = src.ThumbLX;
+            if (Math.Abs(src.ThumbLY) > Math.Abs(dest.ThumbLY))
+                dest.ThumbLY = src.ThumbLY;
+            if (Math.Abs(src.ThumbRX) > Math.Abs(dest.ThumbRX))
+                dest.ThumbRX = src.ThumbRX;
+            if (Math.Abs(src.ThumbRY) > Math.Abs(dest.ThumbRY))
+                dest.ThumbRY = src.ThumbRY;
+        }
+    }
+}

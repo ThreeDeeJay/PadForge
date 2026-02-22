@@ -1,0 +1,254 @@
+using System;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+
+namespace PadForge.ViewModels
+{
+    /// <summary>
+    /// ViewModel for the Settings page. Manages application-level settings
+    /// including theme selection, ViGEmBus driver management, auto-start
+    /// options, and settings file paths.
+    /// </summary>
+    public partial class SettingsViewModel : ViewModelBase
+    {
+        public SettingsViewModel()
+        {
+            Title = "Settings";
+        }
+
+        // ─────────────────────────────────────────────
+        //  Theme
+        // ─────────────────────────────────────────────
+
+        private int _selectedThemeIndex;
+
+        /// <summary>
+        /// Selected theme index: 0 = System, 1 = Light, 2 = Dark.
+        /// </summary>
+        public int SelectedThemeIndex
+        {
+            get => _selectedThemeIndex;
+            set
+            {
+                if (SetProperty(ref _selectedThemeIndex, value))
+                    ThemeChanged?.Invoke(this, value);
+            }
+        }
+
+        /// <summary>Raised when the theme selection changes. Arg = theme index.</summary>
+        public event EventHandler<int> ThemeChanged;
+
+        // ─────────────────────────────────────────────
+        //  ViGEmBus driver
+        // ─────────────────────────────────────────────
+
+        private bool _isViGEmInstalled;
+
+        /// <summary>Whether the ViGEmBus driver is installed.</summary>
+        public bool IsViGEmInstalled
+        {
+            get => _isViGEmInstalled;
+            set
+            {
+                if (SetProperty(ref _isViGEmInstalled, value))
+                {
+                    OnPropertyChanged(nameof(ViGEmStatusText));
+                    _installViGEmCommand?.NotifyCanExecuteChanged();
+                    _uninstallViGEmCommand?.NotifyCanExecuteChanged();
+                }
+            }
+        }
+
+        /// <summary>ViGEmBus status display text.</summary>
+        public string ViGEmStatusText => _isViGEmInstalled ? "Installed" : "Not Installed";
+
+        private string _vigemVersion = string.Empty;
+
+        /// <summary>ViGEmBus driver version string.</summary>
+        public string ViGEmVersion
+        {
+            get => _vigemVersion;
+            set => SetProperty(ref _vigemVersion, value);
+        }
+
+        private RelayCommand _installViGEmCommand;
+
+        /// <summary>Command to install the ViGEmBus driver.</summary>
+        public RelayCommand InstallViGEmCommand =>
+            _installViGEmCommand ??= new RelayCommand(
+                () => InstallViGEmRequested?.Invoke(this, EventArgs.Empty),
+                () => !_isViGEmInstalled);
+
+        private RelayCommand _uninstallViGEmCommand;
+
+        /// <summary>Command to uninstall the ViGEmBus driver.</summary>
+        public RelayCommand UninstallViGEmCommand =>
+            _uninstallViGEmCommand ??= new RelayCommand(
+                () => UninstallViGEmRequested?.Invoke(this, EventArgs.Empty),
+                () => _isViGEmInstalled);
+
+        /// <summary>Raised when the user requests ViGEmBus installation.</summary>
+        public event EventHandler InstallViGEmRequested;
+
+        /// <summary>Raised when the user requests ViGEmBus uninstallation.</summary>
+        public event EventHandler UninstallViGEmRequested;
+
+        // ─────────────────────────────────────────────
+        //  Engine settings
+        // ─────────────────────────────────────────────
+
+        private bool _autoStartEngine = true;
+
+        /// <summary>Whether to automatically start the input engine on application launch.</summary>
+        public bool AutoStartEngine
+        {
+            get => _autoStartEngine;
+            set => SetProperty(ref _autoStartEngine, value);
+        }
+
+        private bool _minimizeToTray;
+
+        /// <summary>Whether to minimize to system tray instead of taskbar.</summary>
+        public bool MinimizeToTray
+        {
+            get => _minimizeToTray;
+            set => SetProperty(ref _minimizeToTray, value);
+        }
+
+        private bool _startMinimized;
+
+        /// <summary>Whether to start the application minimized.</summary>
+        public bool StartMinimized
+        {
+            get => _startMinimized;
+            set => SetProperty(ref _startMinimized, value);
+        }
+
+        private bool _enablePollingOnFocusLoss = true;
+
+        /// <summary>Whether to continue polling when the application loses focus.</summary>
+        public bool EnablePollingOnFocusLoss
+        {
+            get => _enablePollingOnFocusLoss;
+            set => SetProperty(ref _enablePollingOnFocusLoss, value);
+        }
+
+        private int _pollingRateMs = 1;
+
+        /// <summary>
+        /// Target polling interval in milliseconds. Lower = faster but more CPU.
+        /// Valid range: 1–16.
+        /// </summary>
+        public int PollingRateMs
+        {
+            get => _pollingRateMs;
+            set => SetProperty(ref _pollingRateMs, Math.Clamp(value, 1, 16));
+        }
+
+        // ─────────────────────────────────────────────
+        //  Settings file
+        // ─────────────────────────────────────────────
+
+        private string _settingsFilePath = string.Empty;
+
+        /// <summary>Full path to the currently loaded settings file.</summary>
+        public string SettingsFilePath
+        {
+            get => _settingsFilePath;
+            set => SetProperty(ref _settingsFilePath, value ?? string.Empty);
+        }
+
+        private bool _hasUnsavedChanges;
+
+        /// <summary>Whether there are unsaved changes to settings.</summary>
+        public bool HasUnsavedChanges
+        {
+            get => _hasUnsavedChanges;
+            set => SetProperty(ref _hasUnsavedChanges, value);
+        }
+
+        private RelayCommand _saveCommand;
+
+        /// <summary>Command to save settings to disk.</summary>
+        public RelayCommand SaveCommand =>
+            _saveCommand ??= new RelayCommand(
+                () => SaveRequested?.Invoke(this, EventArgs.Empty));
+
+        private RelayCommand _reloadCommand;
+
+        /// <summary>Command to reload settings from disk, discarding changes.</summary>
+        public RelayCommand ReloadCommand =>
+            _reloadCommand ??= new RelayCommand(
+                () => ReloadRequested?.Invoke(this, EventArgs.Empty));
+
+        private RelayCommand _resetCommand;
+
+        /// <summary>Command to reset all settings to defaults.</summary>
+        public RelayCommand ResetCommand =>
+            _resetCommand ??= new RelayCommand(
+                () => ResetRequested?.Invoke(this, EventArgs.Empty));
+
+        private RelayCommand _openSettingsFolderCommand;
+
+        /// <summary>Command to open the settings file folder in Explorer.</summary>
+        public RelayCommand OpenSettingsFolderCommand =>
+            _openSettingsFolderCommand ??= new RelayCommand(
+                () => OpenSettingsFolderRequested?.Invoke(this, EventArgs.Empty));
+
+        /// <summary>Raised when the user requests saving.</summary>
+        public event EventHandler SaveRequested;
+
+        /// <summary>Raised when the user requests reloading from disk.</summary>
+        public event EventHandler ReloadRequested;
+
+        /// <summary>Raised when the user requests a settings reset.</summary>
+        public event EventHandler ResetRequested;
+
+        /// <summary>Raised when the user wants to open the settings folder.</summary>
+        public event EventHandler OpenSettingsFolderRequested;
+
+        // ─────────────────────────────────────────────
+        //  XInput library info
+        // ─────────────────────────────────────────────
+
+        private string _xinputLibraryInfo = string.Empty;
+
+        /// <summary>Information about the loaded XInput DLL.</summary>
+        public string XInputLibraryInfo
+        {
+            get => _xinputLibraryInfo;
+            set => SetProperty(ref _xinputLibraryInfo, value ?? string.Empty);
+        }
+
+        private string _sdlVersion = string.Empty;
+
+        /// <summary>SDL2 library version string.</summary>
+        public string SdlVersion
+        {
+            get => _sdlVersion;
+            set => SetProperty(ref _sdlVersion, value ?? string.Empty);
+        }
+
+        // ─────────────────────────────────────────────
+        //  Diagnostic info
+        // ─────────────────────────────────────────────
+
+        private string _applicationVersion = string.Empty;
+
+        /// <summary>Application version string.</summary>
+        public string ApplicationVersion
+        {
+            get => _applicationVersion;
+            set => SetProperty(ref _applicationVersion, value ?? string.Empty);
+        }
+
+        private string _runtimeVersion = string.Empty;
+
+        /// <summary>.NET runtime version string.</summary>
+        public string RuntimeVersion
+        {
+            get => _runtimeVersion;
+            set => SetProperty(ref _runtimeVersion, value ?? string.Empty);
+        }
+    }
+}
