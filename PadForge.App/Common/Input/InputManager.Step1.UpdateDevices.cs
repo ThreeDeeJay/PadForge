@@ -60,6 +60,12 @@ namespace PadForge.Common.Input
             {
                 try
                 {
+                    // ── Pre-open quick rejection ──
+                    // Check VID/PID and SDL game controller status BEFORE opening.
+                    // This avoids the overhead of opening devices we know we'll skip.
+                    if (ShouldSkipDevicePreOpen(deviceIndex))
+                        continue;
+
                     // Get pre-open identification to check if already tracked.
                     ushort vid = SDL_JoystickGetDeviceVendor(deviceIndex);
                     ushort pid = SDL_JoystickGetDeviceProduct(deviceIndex);
@@ -87,9 +93,11 @@ namespace PadForge.Common.Input
                         continue;
                     }
 
-                    // Skip devices that are native XInput controllers —
-                    // those are handled via XInputInterop in Step 2.
-                    if (IsNativeXInputDevice(wrapper))
+                    // ── Post-open filtering ──
+                    // Skip devices that are native XInput controllers OR ViGEm virtual controllers.
+                    // These are handled via XInputInterop in Step 2 (real Xbox controllers)
+                    // or are our own output devices (ViGEm virtual controllers).
+                    if (IsNativeXInputDevice(wrapper) || IsViGEmVirtualDevice(wrapper))
                     {
                         wrapper.Dispose();
                         continue;
@@ -180,6 +188,14 @@ namespace PadForge.Common.Input
         /// </summary>
         private void UpdateXInputDevices(ref bool changed)
         {
+            // ── Run ViGEm slot tracking (count-based + delta) ──
+            // This catches any slots that the before/after delta in
+            // CreateVirtualController may have missed due to timing.
+            // Must run BEFORE we snapshot vigemSlots below.
+            // Adapted from x360ce DInputHelper.Step1.UpdateDevices.cs:
+            //   UpdateViGEmSlotTracking()
+            UpdateViGEmSlotTracking();
+
             // Snapshot the set of XInput slots occupied by our ViGEm virtual controllers.
             HashSet<int> vigemSlots;
             lock (_vigemOccupiedXInputSlots)
@@ -315,7 +331,7 @@ namespace PadForge.Common.Input
         }
 
         // ─────────────────────────────────────────────
-        //  XInput device detection for SDL devices
+        //  XInput / ViGEm device detection for SDL devices
         // ─────────────────────────────────────────────
 
         /// <summary>
@@ -345,24 +361,142 @@ namespace PadForge.Common.Input
         };
 
         /// <summary>
+        /// Name substrings that identify Xbox / XInput / ViGEm virtual controllers.
+        /// Case-insensitive matching. If a device name contains ANY of these,
+        /// it's treated as an XInput device that should be handled natively.
+        /// </summary>
+        private static readonly string[] XboxNamePatterns = new[]
+        {
+            "Xbox",
+            "X-Box",
+            "X360",
+            "XINPUT",
+            "ViGEm",
+            "Virtual Gamepad",
+        };
+
+        /// <summary>
+        /// Quick pre-open rejection: checks VID/PID and SDL game controller
+        /// status BEFORE opening the device. This avoids the overhead of
+        /// opening and then immediately closing devices we know we'll skip.
+        /// </summary>
+        private static bool ShouldSkipDevicePreOpen(int deviceIndex)
+        {
+            // Check VID/PID before opening.
+            ushort vid = SDL_JoystickGetDeviceVendor(deviceIndex);
+            ushort pid = SDL_JoystickGetDeviceProduct(deviceIndex);
+
+            // Microsoft Xbox controllers — handled natively via XInput.
+            if (vid == 0x045E && KnownXboxPids.Contains(pid))
+                return true;
+
+            // Check the joystick name before opening for Xbox/ViGEm patterns.
+            string name = SDL_JoystickNameForIndex(deviceIndex);
+            if (!string.IsNullOrEmpty(name) && ContainsXboxPattern(name))
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
         /// Checks whether an SDL device is a native XInput controller that should
-        /// be handled via XInputInterop instead of SDL. Uses VID/PID matching
-        /// against known Xbox controller identifiers.
+        /// be handled via XInputInterop instead of SDL.
         /// 
-        /// Note: The previous PIDVID-based check was incorrect because our synthetic
-        /// product GUIDs always included the PIDVID signature, causing ALL SDL devices
-        /// to be filtered out.
+        /// Uses multiple detection layers:
+        ///   1. VID/PID matching against known Xbox controller identifiers
+        ///   2. Device name pattern matching (Xbox, X360, XInput, etc.)
+        ///   3. Microsoft VID (0x045E) + SDL game controller recognition
         /// </summary>
         private static bool IsNativeXInputDevice(SdlDeviceWrapper wrapper)
         {
+            // ── Layer 1: VID/PID match ──
             // Microsoft Xbox controllers all use VID 0x045E.
             if (wrapper.VendorId == 0x045E && KnownXboxPids.Contains(wrapper.ProductId))
                 return true;
 
-            // Also check the SDL joystick type — SDL can identify game controllers
-            // even with XInput disabled in its hints.
-            // However, we only filter Microsoft VID to avoid blocking third-party
-            // DirectInput gamepads that happen to be game controllers.
+            // ── Layer 2: Name-based detection ──
+            // ViGEm virtual controllers and some XInput-compatible controllers
+            // may not report the expected VID/PID through SDL but will have
+            // recognizable names.
+            string name = wrapper.Name;
+            if (!string.IsNullOrEmpty(name) && ContainsXboxPattern(name))
+                return true;
+
+            // ── Layer 3: Microsoft VID + SDL game controller recognition ──
+            // If SDL recognizes a Microsoft device as a game controller,
+            // it's almost certainly an Xbox controller (real or virtual).
+            // Since we handle all XInput natively, skip it from SDL.
+            if (wrapper.VendorId == 0x045E && wrapper.IsGameController)
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks whether an SDL device is a ViGEm virtual controller.
+        /// This is a separate check from IsNativeXInputDevice because ViGEm
+        /// controllers may report unexpected VID/PID values through SDL
+        /// (e.g., zeroes) or different device names.
+        /// 
+        /// Detection methods:
+        ///   1. Device path containing ViGEm signatures
+        ///   2. Zero VID/PID + SDL game controller (likely virtual)
+        ///   3. Known ViGEm product GUIDs
+        /// </summary>
+        private bool IsViGEmVirtualDevice(SdlDeviceWrapper wrapper)
+        {
+            // ── Check device path for ViGEm signatures ──
+            string path = wrapper.DevicePath;
+            if (!string.IsNullOrEmpty(path))
+            {
+                string pathLower = path.ToLowerInvariant();
+                if (pathLower.Contains("vigem") || pathLower.Contains("virtual"))
+                    return true;
+            }
+
+            // ── Zero VID/PID + recognized as game controller ──
+            // ViGEm devices may report VID/PID as 0 through SDL's
+            // pre-open enumeration. If a device has no VID/PID but SDL
+            // recognizes it as a standard game controller, AND we currently
+            // have ViGEm virtual controllers active, it's very likely virtual.
+            if (wrapper.VendorId == 0 && wrapper.ProductId == 0)
+            {
+                bool vigemActive;
+                lock (_vigemOccupiedXInputSlots)
+                {
+                    vigemActive = _vigemOccupiedXInputSlots.Count > 0;
+                }
+
+                if (vigemActive && wrapper.IsGameController)
+                    return true;
+            }
+
+            // ── Check if device matches ViGEm Xbox 360 exactly ──
+            // ViGEm Xbox 360 emulated controllers use VID 0x045E, PID 0x028E.
+            // This overlaps with real Xbox 360 controllers, but real ones
+            // should already be filtered by IsNativeXInputDevice.
+            // This catch-all ensures ViGEm devices are never opened via SDL.
+            if (wrapper.VendorId == 0x045E && wrapper.ProductId == 0x028E)
+                return true;
+
+            return false;
+        }
+
+        /// <summary>
+        /// Checks if a device name contains any known Xbox / ViGEm pattern.
+        /// Case-insensitive.
+        /// </summary>
+        private static bool ContainsXboxPattern(string name)
+        {
+            if (string.IsNullOrEmpty(name))
+                return false;
+
+            foreach (string pattern in XboxNamePatterns)
+            {
+                if (name.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
             return false;
         }
 

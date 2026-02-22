@@ -53,6 +53,9 @@ namespace PadForge.Common.Input
 
                     foreach (var us in slotSettings)
                     {
+                        if (us == null)
+                            continue;
+
                         var gp = us.XiState;
                         MergeGamepad(ref combined, ref gp);
                     }
@@ -89,13 +92,13 @@ namespace PadForge.Common.Input
             // Thumbsticks: largest absolute magnitude wins per axis.
             // This allows, e.g., one device to control the left stick and another
             // to control the right stick without interference.
-            if (Math.Abs(src.ThumbLX) > Math.Abs(dest.ThumbLX))
+            if (Math.Abs((int)src.ThumbLX) > Math.Abs((int)dest.ThumbLX))
                 dest.ThumbLX = src.ThumbLX;
-            if (Math.Abs(src.ThumbLY) > Math.Abs(dest.ThumbLY))
+            if (Math.Abs((int)src.ThumbLY) > Math.Abs((int)dest.ThumbLY))
                 dest.ThumbLY = src.ThumbLY;
-            if (Math.Abs(src.ThumbRX) > Math.Abs(dest.ThumbRX))
+            if (Math.Abs((int)src.ThumbRX) > Math.Abs((int)dest.ThumbRX))
                 dest.ThumbRX = src.ThumbRX;
-            if (Math.Abs(src.ThumbRY) > Math.Abs(dest.ThumbRY))
+            if (Math.Abs((int)src.ThumbRY) > Math.Abs((int)dest.ThumbRY))
                 dest.ThumbRY = src.ThumbRY;
         }
     }

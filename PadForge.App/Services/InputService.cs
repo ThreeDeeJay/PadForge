@@ -412,6 +412,15 @@ namespace PadForge.Services
         /// <summary>
         /// Synchronizes the DevicesViewModel.Devices collection with
         /// SettingsManager.UserDevices. Called on the UI thread.
+        /// 
+        /// Filtering strategy (multi-layer to ensure no virtual controllers leak):
+        ///   Layer 1: GUID-based — exclude devices whose InstanceGuid matches
+        ///            our ViGEm virtual controller XInput slots.
+        ///   Layer 2: VID/PID-based — exclude devices with Xbox 360 VID/PID
+        ///            (0x045E:0x028E) that aren't XInput-managed, since they're
+        ///            ViGEm virtual controllers seen through DirectInput.
+        ///   Layer 3: Name-based — exclude devices with "ViGEm" or "Virtual"
+        ///            in their name.
         /// </summary>
         private void SyncDevicesList()
         {
@@ -428,14 +437,13 @@ namespace PadForge.Services
 
             // Get the set of instance GUIDs belonging to our ViGEm virtual controllers.
             // These should be hidden from the user-facing device list.
-            var vigemGuids = _inputManager.GetViGEmVirtualDeviceGuids();
+            var vigemGuids = _inputManager?.GetViGEmVirtualDeviceGuids() ?? new HashSet<Guid>();
 
-            // Update existing rows and add new ones (skip ViGEm virtual devices).
+            // Update existing rows and add new ones (skip virtual devices).
             foreach (var ud in snapshot)
             {
-                // Filter out ViGEm virtual controllers — these are our own output
-                // devices that should not appear as input devices in the UI.
-                if (vigemGuids.Contains(ud.InstanceGuid))
+                // ── Multi-layer virtual controller filter ──
+                if (IsVirtualOrShadowDevice(ud, vigemGuids))
                     continue;
 
                 var row = devVm.FindByGuid(ud.InstanceGuid);
@@ -448,32 +456,84 @@ namespace PadForge.Services
                 PopulateDeviceRow(row, ud);
             }
 
-            // Remove rows for devices no longer in the collection or that are ViGEm virtual.
+            // Remove rows for devices that are no longer valid or are virtual.
             for (int i = devVm.Devices.Count - 1; i >= 0; i--)
             {
                 var row = devVm.Devices[i];
 
-                // Remove if this is a ViGEm virtual device.
-                if (vigemGuids.Contains(row.InstanceGuid))
-                {
-                    devVm.Devices.RemoveAt(i);
-                    continue;
-                }
+                // Remove if this is a virtual device.
+                bool isVirtual = vigemGuids.Contains(row.InstanceGuid);
 
+                // Also remove if no longer in the snapshot.
                 bool found = false;
-                foreach (var ud in snapshot)
+                if (!isVirtual)
                 {
-                    if (ud.InstanceGuid == row.InstanceGuid)
+                    foreach (var ud in snapshot)
                     {
-                        found = true;
-                        break;
+                        if (ud.InstanceGuid == row.InstanceGuid)
+                        {
+                            // Also re-check virtual status with full device info.
+                            if (IsVirtualOrShadowDevice(ud, vigemGuids))
+                            {
+                                isVirtual = true;
+                                break;
+                            }
+                            found = true;
+                            break;
+                        }
                     }
                 }
-                if (!found)
+
+                if (isVirtual || !found)
                     devVm.Devices.RemoveAt(i);
             }
 
             devVm.RefreshCounts();
+        }
+
+        /// <summary>
+        /// Determines whether a UserDevice is a virtual controller or a shadow device
+        /// that should be hidden from the user-facing device list.
+        /// 
+        /// A "shadow device" is a ViGEm virtual controller that appeared through
+        /// DirectInput enumeration with recognizable characteristics but wasn't
+        /// caught by the engine-level filter.
+        /// </summary>
+        /// <param name="ud">The device to check.</param>
+        /// <param name="vigemGuids">Set of known ViGEm virtual controller GUIDs.</param>
+        /// <returns>True if the device should be hidden.</returns>
+        private bool IsVirtualOrShadowDevice(UserDevice ud, HashSet<Guid> vigemGuids)
+        {
+            // ── Layer 1: GUID match (XInput-based ViGEm devices) ──
+            if (vigemGuids.Contains(ud.InstanceGuid))
+                return true;
+
+            // ── Layer 2: VID/PID match for ViGEm Xbox 360 controllers ──
+            // ViGEm virtual Xbox 360 controllers use VID 0x045E, PID 0x028E.
+            // If this device has that VID/PID but is NOT one of our XInput-managed
+            // native controllers (IsXInput == true), it's a shadow device.
+            //
+            // Real Xbox controllers at unoccupied XInput slots have IsXInput == true
+            // because they were created by UpdateXInputDevices, not by SDL enumeration.
+            // A ViGEm controller that leaked through SDL would have IsXInput == false
+            // with the Xbox 360 VID/PID — that's the telltale sign.
+            if (ud.VendorId == 0x045E && ud.ProdId == 0x028E && !ud.IsXInput)
+                return true;
+
+            // ── Layer 3: Name-based detection ──
+            string name = ud.ResolvedName;
+            if (!string.IsNullOrEmpty(name))
+            {
+                if (name.Contains("ViGEm", StringComparison.OrdinalIgnoreCase) ||
+                    name.Contains("Virtual Gamepad", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+
+            // ── Layer 4: Hidden flag ──
+            if (ud.IsHidden)
+                return true;
+
+            return false;
         }
 
         /// <summary>

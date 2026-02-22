@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Nefarius.ViGEm.Client;
 using Nefarius.ViGEm.Client.Targets;
 using Nefarius.ViGEm.Client.Targets.Xbox360;
@@ -25,8 +26,12 @@ namespace PadForge.Common.Input
 
         /// <summary>
         /// XInput user indices currently occupied by our ViGEm virtual controllers.
-        /// Used by Step 1 to avoid reading back our own virtual controllers as input
-        /// devices (loopback prevention).
+        /// Updated by count-based + delta tracking (NOT by reading UserIndex).
+        ///
+        /// Used by Step 1 to skip our own virtual controllers during XInput
+        /// enumeration (loopback prevention).
+        ///
+        /// Thread safety: always access under lock(_vigemOccupiedXInputSlots).
         /// </summary>
         private readonly HashSet<int> _vigemOccupiedXInputSlots = new HashSet<int>();
 
@@ -35,6 +40,32 @@ namespace PadForge.Common.Input
 
         /// <summary>Whether ViGEmBus driver is reachable.</summary>
         public bool IsViGEmAvailable => _vigemClient != null;
+
+        // ═══════════════════════════════════════════════════════════
+        // ViGEm slot tracking state (count-based + delta approach).
+        //
+        // Adapted from x360ce DInputHelper.Step1.UpdateDevices.cs:
+        //   UpdateViGEmSlotTracking()
+        //
+        // WHY NOT controller.UserIndex?
+        //   Reading UserIndex after Connect() can block or throw if
+        //   the virtual device hasn't finished initializing. When called
+        //   on the update thread this causes a hang/infinite loop.
+        //
+        // HOW THIS WORKS:
+        //   1. Track how many ViGEm controllers WE have connected
+        //      (_activeVigemCount — we know this exactly).
+        //   2. Snapshot the XInput slot mask BEFORE and AFTER Connect().
+        //   3. New bit = the slot our virtual controller landed on.
+        //   4. If the delta is missed (timing), UpdateViGEmSlotTracking()
+        //      catches it on the next enumeration cycle using count-based
+        //      detection: total connected slots minus real physical slots
+        //      = virtual slots, assigned from the TOP down.
+        // ═══════════════════════════════════════════════════════════
+
+        private int _activeVigemCount;
+        private int _lastKnownVigemCount = -1; // -1 = not yet initialized
+        private uint _lastKnownSlotMask;
 
         /// <summary>
         /// Step 5: Feed each slot's combined gamepad state to ViGEmBus.
@@ -152,6 +183,7 @@ namespace PadForge.Common.Input
 
             foreach (var us in slotSettings)
             {
+                if (us == null) continue;
                 var ud = FindOnlineDeviceByInstanceGuid(us.InstanceGuid);
                 if (ud != null && ud.IsOnline)
                     return true;
@@ -162,6 +194,8 @@ namespace PadForge.Common.Input
 
         // ─────────────────────────────────────────────
         //  Virtual controller management
+        //  NON-BLOCKING — uses before/after slot mask
+        //  delta instead of reading UserIndex.
         // ─────────────────────────────────────────────
 
         private IXbox360Controller CreateVirtualController(int padIndex)
@@ -171,26 +205,36 @@ namespace PadForge.Common.Input
 
             try
             {
+                // ── Snapshot XInput slot mask BEFORE connecting ──
+                uint maskBefore = GetXInputConnectedSlotMask();
+
                 var controller = _vigemClient.CreateXbox360Controller();
                 controller.Connect();
 
-                // Record which XInput user index this virtual controller landed on
-                // so that Step 1 can skip it during XInput enumeration (loopback prevention).
-                try
+                // ── Snapshot XInput slot mask AFTER connecting ──
+                // The new slot should appear immediately or within a few ms.
+                // We do ONE non-blocking check — no retries, no Thread.Sleep.
+                uint maskAfter = GetXInputConnectedSlotMask();
+                uint newBits = maskAfter & ~maskBefore;
+
+                if (newBits != 0)
                 {
-                    int userIndex = (int)controller.UserIndex;
-                    if (userIndex >= 0 && userIndex < MaxPads)
+                    // Exactly one new slot appeared — register it as ViGEm-owned.
+                    lock (_vigemOccupiedXInputSlots)
                     {
-                        lock (_vigemOccupiedXInputSlots)
+                        for (int i = 0; i < MaxPads; i++)
                         {
-                            _vigemOccupiedXInputSlots.Add(userIndex);
+                            if ((newBits & (1u << i)) != 0)
+                                _vigemOccupiedXInputSlots.Add(i);
                         }
                     }
                 }
-                catch
-                {
-                    // UserIndex may not be available on all ViGEm versions; ignore.
-                }
+                // If delta detection missed (timing), UpdateViGEmSlotTracking()
+                // will catch it on the next enumeration cycle in Step 1.
+                // The VID/PID and name-based filters in Step 1 also provide
+                // fallback protection against loopback.
+
+                _activeVigemCount++;
 
                 int capturedIndex = padIndex;
                 controller.FeedbackReceived += (sender, args) =>
@@ -220,18 +264,29 @@ namespace PadForge.Common.Input
 
             try
             {
-                // Remove from loopback tracking before disconnecting.
-                try
-                {
-                    int userIndex = (int)vc.UserIndex;
-                    lock (_vigemOccupiedXInputSlots)
-                    {
-                        _vigemOccupiedXInputSlots.Remove(userIndex);
-                    }
-                }
-                catch { /* UserIndex may not be available */ }
+                // ── Snapshot mask BEFORE disconnecting ──
+                uint maskBefore = GetXInputConnectedSlotMask();
 
                 vc.Disconnect();
+
+                // ── Snapshot mask AFTER disconnecting ──
+                uint maskAfter = GetXInputConnectedSlotMask();
+                uint removedBits = maskBefore & ~maskAfter;
+
+                // Unregister any ViGEm-owned slots that disappeared.
+                if (removedBits != 0)
+                {
+                    lock (_vigemOccupiedXInputSlots)
+                    {
+                        for (int i = 0; i < MaxPads; i++)
+                        {
+                            if ((removedBits & (1u << i)) != 0)
+                                _vigemOccupiedXInputSlots.Remove(i);
+                        }
+                    }
+                }
+
+                _activeVigemCount = Math.Max(0, _activeVigemCount - 1);
             }
             catch { /* best effort */ }
         }
@@ -243,6 +298,150 @@ namespace PadForge.Common.Input
                 DestroyVirtualController(i);
                 _virtualControllers[i] = null;
             }
+
+            // Clear all slot tracking.
+            lock (_vigemOccupiedXInputSlots)
+            {
+                _vigemOccupiedXInputSlots.Clear();
+            }
+
+            _activeVigemCount = 0;
+            _lastKnownVigemCount = -1;
+            _lastKnownSlotMask = 0;
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // ViGEm slot tracking: count-based + delta approach.
+        //
+        // Called by Step 1 (UpdateDevices) at the start of each
+        // enumeration cycle. Catches any slots that the before/after
+        // delta in CreateVirtualController/DestroyVirtualController
+        // may have missed due to timing.
+        //
+        // Adapted from x360ce DInputHelper.Step1.UpdateDevices.cs:
+        //   UpdateViGEmSlotTracking()
+        //
+        // This method is NON-BLOCKING. No Thread.Sleep, no retries.
+        // ═══════════════════════════════════════════════════════════
+
+        /// <summary>
+        /// Update ViGEm slot tracking using count-based + delta detection.
+        /// Call this at the start of Step 1 (device enumeration) each cycle.
+        /// </summary>
+        internal void UpdateViGEmSlotTracking()
+        {
+            // We know exactly how many ViGEm controllers WE have active.
+            int vigemCount = _activeVigemCount;
+            uint currentMask = GetXInputConnectedSlotMask();
+
+            if (_lastKnownVigemCount < 0)
+            {
+                // ── First run: initial detection ──
+                _lastKnownVigemCount = vigemCount;
+                _lastKnownSlotMask = currentMask;
+
+                if (vigemCount <= 0)
+                {
+                    lock (_vigemOccupiedXInputSlots)
+                        _vigemOccupiedXInputSlots.Clear();
+                    return;
+                }
+
+                // Physical controllers connected before the app started
+                // occupy the LOWEST XInput slots (assigned by Windows at
+                // boot/plug-in time). ViGEm controllers created during
+                // app initialization get the next available (HIGHEST) slots.
+                var allSlots = new List<int>();
+                for (int i = 0; i < MaxPads; i++)
+                    if ((currentMask & (1u << i)) != 0)
+                        allSlots.Add(i);
+
+                lock (_vigemOccupiedXInputSlots)
+                {
+                    _vigemOccupiedXInputSlots.Clear();
+                    for (int vi = 0; vi < vigemCount && vi < allSlots.Count; vi++)
+                        _vigemOccupiedXInputSlots.Add(allSlots[allSlots.Count - 1 - vi]);
+                }
+                return;
+            }
+
+            // ── Runtime: detect ViGEm count changes via delta ──
+            if (vigemCount > _lastKnownVigemCount)
+            {
+                // New ViGEm device(s) created.
+                // Any XInput slot that appeared since last check is ViGEm.
+                uint newBits = currentMask & ~_lastKnownSlotMask;
+                lock (_vigemOccupiedXInputSlots)
+                {
+                    for (int i = 0; i < MaxPads; i++)
+                        if ((newBits & (1u << i)) != 0)
+                            _vigemOccupiedXInputSlots.Add(i);
+                }
+            }
+            else if (vigemCount < _lastKnownVigemCount)
+            {
+                // ViGEm device(s) removed.
+                // Slots that disappeared and were ViGEm-owned → unregister.
+                uint removedBits = _lastKnownSlotMask & ~currentMask;
+                lock (_vigemOccupiedXInputSlots)
+                {
+                    for (int i = 0; i < MaxPads; i++)
+                        if ((removedBits & (1u << i)) != 0 && _vigemOccupiedXInputSlots.Contains(i))
+                            _vigemOccupiedXInputSlots.Remove(i);
+                }
+            }
+
+            _lastKnownVigemCount = vigemCount;
+            _lastKnownSlotMask = currentMask;
+        }
+
+        // ─────────────────────────────────────────────
+        //  XInput slot mask — direct P/Invoke to xinput1_4.dll
+        //
+        //  This bypasses SDL entirely and talks to the real
+        //  XInput driver. Used for ViGEm slot detection only.
+        //  Same approach as x360ce's XInputInterop.
+        // ─────────────────────────────────────────────
+
+        [DllImport("xinput1_4.dll", EntryPoint = "#100")]
+        private static extern uint XInputGetStateEx(
+            uint dwUserIndex, ref XInputStateInternal pState);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct XInputGamepadInternal
+        {
+            public ushort wButtons;
+            public byte bLeftTrigger;
+            public byte bRightTrigger;
+            public short sThumbLX;
+            public short sThumbLY;
+            public short sThumbRX;
+            public short sThumbRY;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct XInputStateInternal
+        {
+            public uint dwPacketNumber;
+            public XInputGamepadInternal Gamepad;
+        }
+
+        private const uint XINPUT_ERROR_DEVICE_NOT_CONNECTED = 0x048F;
+
+        /// <summary>
+        /// Returns a bitmask of connected XInput slots (bit 0 = slot 0, etc.).
+        /// Probes slots 0–3 directly via xinput1_4.dll.
+        /// </summary>
+        private static uint GetXInputConnectedSlotMask()
+        {
+            uint mask = 0;
+            for (uint i = 0; i < 4; i++)
+            {
+                var state = new XInputStateInternal();
+                if (XInputGetStateEx(i, ref state) != XINPUT_ERROR_DEVICE_NOT_CONNECTED)
+                    mask |= (1u << (int)i);
+            }
+            return mask;
         }
 
         // ─────────────────────────────────────────────

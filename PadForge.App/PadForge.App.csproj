@@ -19,13 +19,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Remove="Resources\SDL2\x64\SDL2.dll" />
-  </ItemGroup>
-
-  <ItemGroup>
     <Content Include="Resources\PadForge.ico" />
-    <Content Include="Resources\SDL2\x64\SDL2.dll">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    <!--
+      SDL2.dll: Link="SDL2.dll" ensures the file is copied to the OUTPUT ROOT
+      (next to PadForge.exe) rather than preserving the Resources\SDL2\x64\ subdirectory.
+      Download x64 SDL2.dll from https://github.com/libsdl-org/SDL/releases (SDL2, not SDL3).
+    -->
+    <Content Include="Resources\SDL2\x64\SDL2.dll" Link="SDL2.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
 
@@ -37,15 +38,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\PadForge.Engine\PadForge.Engine.csproj" />
-  </ItemGroup>
-
-  <!--
-    SDL2.dll must be in the output directory next to the exe.
-    Place SDL2.dll in the PadForge.App project root folder and it will be copied automatically.
-    Download x64 SDL2.dll from https://github.com/libsdl-org/SDL/releases (SDL2, not SDL3).
-  -->
-  <ItemGroup>
-    <None Include="SDL2.dll" CopyToOutputDirectory="PreserveNewest" Condition="Exists('SDL2.dll')" />
   </ItemGroup>
 
 </Project>
