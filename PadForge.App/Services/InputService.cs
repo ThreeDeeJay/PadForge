@@ -453,9 +453,11 @@ namespace PadForge.Services
             ps.RightThumbDeadZoneX = padVm.RightDeadZoneX.ToString();
             ps.RightThumbDeadZoneY = padVm.RightDeadZoneY.ToString();
 
-            // Anti-dead zones.
-            ps.LeftThumbAntiDeadZone = padVm.LeftAntiDeadZone.ToString();
-            ps.RightThumbAntiDeadZone = padVm.RightAntiDeadZone.ToString();
+            // Anti-dead zones (per-axis).
+            ps.LeftThumbAntiDeadZoneX = padVm.LeftAntiDeadZoneX.ToString();
+            ps.LeftThumbAntiDeadZoneY = padVm.LeftAntiDeadZoneY.ToString();
+            ps.RightThumbAntiDeadZoneX = padVm.RightAntiDeadZoneX.ToString();
+            ps.RightThumbAntiDeadZoneY = padVm.RightAntiDeadZoneY.ToString();
 
             // Linear response.
             ps.LeftThumbLinear = padVm.LeftLinear.ToString();
@@ -498,8 +500,11 @@ namespace PadForge.Services
             padVm.LeftDeadZoneY = TryParseInt(ps.LeftThumbDeadZoneY, 0);
             padVm.RightDeadZoneX = TryParseInt(ps.RightThumbDeadZoneX, 0);
             padVm.RightDeadZoneY = TryParseInt(ps.RightThumbDeadZoneY, 0);
-            padVm.LeftAntiDeadZone = TryParseInt(ps.LeftThumbAntiDeadZone, 0);
-            padVm.RightAntiDeadZone = TryParseInt(ps.RightThumbAntiDeadZone, 0);
+            ps.MigrateAntiDeadZones();
+            padVm.LeftAntiDeadZoneX = TryParseInt(ps.LeftThumbAntiDeadZoneX, 0);
+            padVm.LeftAntiDeadZoneY = TryParseInt(ps.LeftThumbAntiDeadZoneY, 0);
+            padVm.RightAntiDeadZoneX = TryParseInt(ps.RightThumbAntiDeadZoneX, 0);
+            padVm.RightAntiDeadZoneY = TryParseInt(ps.RightThumbAntiDeadZoneY, 0);
             padVm.LeftLinear = TryParseInt(ps.LeftThumbLinear, 0);
             padVm.RightLinear = TryParseInt(ps.RightThumbLinear, 0);
 
@@ -1038,12 +1043,17 @@ namespace PadForge.Services
         /// <param name="padIndex">Pad slot index (0–3).</param>
         public void SendTestRumble(int padIndex)
         {
+            SendTestRumble(padIndex, true, true);
+        }
+
+        public void SendTestRumble(int padIndex, bool left, bool right)
+        {
             if (_inputManager == null || padIndex < 0 || padIndex >= InputManager.MaxPads)
                 return;
 
             // Set vibration for 500ms, then clear.
-            _inputManager.VibrationStates[padIndex].LeftMotorSpeed = 32768;
-            _inputManager.VibrationStates[padIndex].RightMotorSpeed = 32768;
+            if (left) _inputManager.VibrationStates[padIndex].LeftMotorSpeed = 32768;
+            if (right) _inputManager.VibrationStates[padIndex].RightMotorSpeed = 32768;
 
             // Schedule clearing after 500ms.
             var clearTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
@@ -1051,8 +1061,8 @@ namespace PadForge.Services
             {
                 if (_inputManager != null && padIndex < InputManager.MaxPads)
                 {
-                    _inputManager.VibrationStates[padIndex].LeftMotorSpeed = 0;
-                    _inputManager.VibrationStates[padIndex].RightMotorSpeed = 0;
+                    if (left) _inputManager.VibrationStates[padIndex].LeftMotorSpeed = 0;
+                    if (right) _inputManager.VibrationStates[padIndex].RightMotorSpeed = 0;
                 }
                 clearTimer.Stop();
             };

@@ -77,6 +77,11 @@
                         <Run Text="{Binding SelectedDevice.DeviceType, Mode=OneWay}"/>
                         <Run Text="{Binding SelectedDevice.IsXInput, Mode=OneWay, StringFormat=' (XInput: {0})'}"/>
                     </TextBlock>
+                    <TextBlock FontSize="11" Opacity="0.5" Margin="0,0,0,2"
+                               TextWrapping="Wrap" FontFamily="Consolas">
+                        <Run Text="GUID:"/>
+                        <Run Text="{Binding SelectedDevice.InstanceGuid, Mode=OneWay}"/>
+                    </TextBlock>
                     <TextBlock FontSize="12" Opacity="0.6" TextWrapping="Wrap" Margin="0,0,0,8">
                         <Run Text="{Binding SelectedDevice.CapabilitiesSummary, Mode=OneWay}"/>
                     </TextBlock>

@@ -162,13 +162,15 @@ namespace PadForge.Common.Input
             ApplyDeadZone(ref gp.ThumbLX, ref gp.ThumbLY,
                 TryParseIntStatic(ps.LeftThumbDeadZoneX, 0),
                 TryParseIntStatic(ps.LeftThumbDeadZoneY, 0),
-                ps.LeftThumbAntiDeadZone,
+                ps.LeftThumbAntiDeadZoneX,
+                ps.LeftThumbAntiDeadZoneY,
                 ps.LeftThumbLinear);
 
             ApplyDeadZone(ref gp.ThumbRX, ref gp.ThumbRY,
                 TryParseIntStatic(ps.RightThumbDeadZoneX, 0),
                 TryParseIntStatic(ps.RightThumbDeadZoneY, 0),
-                ps.RightThumbAntiDeadZone,
+                ps.RightThumbAntiDeadZoneX,
+                ps.RightThumbAntiDeadZoneY,
                 ps.RightThumbLinear);
 
             return gp;
@@ -633,14 +635,15 @@ namespace PadForge.Common.Input
         /// </summary>
         private static void ApplyDeadZone(ref short axisX, ref short axisY,
             int deadZoneX, int deadZoneY,
-            string antiDeadZoneStr, string linearStr)
+            string antiDeadZoneXStr, string antiDeadZoneYStr, string linearStr)
         {
-            int antiDeadZone = TryParseIntStatic(antiDeadZoneStr, 0);
+            int antiDeadZoneX = TryParseIntStatic(antiDeadZoneXStr, 0);
+            int antiDeadZoneY = TryParseIntStatic(antiDeadZoneYStr, 0);
             int linear = TryParseIntStatic(linearStr, 0);
 
             // Apply dead zone independently to each axis.
-            axisX = ApplySingleDeadZone(axisX, deadZoneX, antiDeadZone, linear);
-            axisY = ApplySingleDeadZone(axisY, deadZoneY, antiDeadZone, linear);
+            axisX = ApplySingleDeadZone(axisX, deadZoneX, antiDeadZoneX, linear);
+            axisY = ApplySingleDeadZone(axisY, deadZoneY, antiDeadZoneY, linear);
         }
 
         /// <summary>

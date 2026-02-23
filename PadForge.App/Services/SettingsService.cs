@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Xml.Serialization;
+using PadForge.Common;
 using PadForge.Common.Input;
 using PadForge.Engine.Data;
 using PadForge.ViewModels;
@@ -253,8 +254,11 @@ namespace PadForge.Services
                 padVm.LeftDeadZoneY = TryParseInt(ps.LeftThumbDeadZoneY, 0);
                 padVm.RightDeadZoneX = TryParseInt(ps.RightThumbDeadZoneX, 0);
                 padVm.RightDeadZoneY = TryParseInt(ps.RightThumbDeadZoneY, 0);
-                padVm.LeftAntiDeadZone = TryParseInt(ps.LeftThumbAntiDeadZone, 0);
-                padVm.RightAntiDeadZone = TryParseInt(ps.RightThumbAntiDeadZone, 0);
+                ps.MigrateAntiDeadZones();
+                padVm.LeftAntiDeadZoneX = TryParseInt(ps.LeftThumbAntiDeadZoneX, 0);
+                padVm.LeftAntiDeadZoneY = TryParseInt(ps.LeftThumbAntiDeadZoneY, 0);
+                padVm.RightAntiDeadZoneX = TryParseInt(ps.RightThumbAntiDeadZoneX, 0);
+                padVm.RightAntiDeadZoneY = TryParseInt(ps.RightThumbAntiDeadZoneY, 0);
                 padVm.LeftLinear = TryParseInt(ps.LeftThumbLinear, 0);
                 padVm.RightLinear = TryParseInt(ps.RightThumbLinear, 0);
 
@@ -317,6 +321,10 @@ namespace PadForge.Services
                             Type = ad.Type,
                             ButtonFlags = ad.ButtonFlags,
                             KeyCode = ad.KeyCode,
+                            // Migrate legacy single KeyCode to KeyString format.
+                            KeyString = !string.IsNullOrEmpty(ad.KeyString)
+                                ? ad.KeyString
+                                : (ad.KeyCode != 0 ? $"{{{(VirtualKey)ad.KeyCode}}}" : ""),
                             DurationMs = ad.DurationMs,
                             AxisValue = ad.AxisValue,
                             AxisTarget = ad.AxisTarget
@@ -463,7 +471,8 @@ namespace PadForge.Services
                         {
                             Type = a.Type,
                             ButtonFlags = a.ButtonFlags,
-                            KeyCode = a.KeyCode,
+                            KeyCode = a.ParsedKeyCodes.Length > 0 ? a.ParsedKeyCodes[0] : a.KeyCode,
+                            KeyString = a.KeyString,
                             DurationMs = a.DurationMs,
                             AxisValue = a.AxisValue,
                             AxisTarget = a.AxisTarget
@@ -507,8 +516,10 @@ namespace PadForge.Services
                     ps.LeftThumbDeadZoneY = padVm.LeftDeadZoneY.ToString();
                     ps.RightThumbDeadZoneX = padVm.RightDeadZoneX.ToString();
                     ps.RightThumbDeadZoneY = padVm.RightDeadZoneY.ToString();
-                    ps.LeftThumbAntiDeadZone = padVm.LeftAntiDeadZone.ToString();
-                    ps.RightThumbAntiDeadZone = padVm.RightAntiDeadZone.ToString();
+                    ps.LeftThumbAntiDeadZoneX = padVm.LeftAntiDeadZoneX.ToString();
+                    ps.LeftThumbAntiDeadZoneY = padVm.LeftAntiDeadZoneY.ToString();
+                    ps.RightThumbAntiDeadZoneX = padVm.RightAntiDeadZoneX.ToString();
+                    ps.RightThumbAntiDeadZoneY = padVm.RightAntiDeadZoneY.ToString();
                     ps.LeftThumbLinear = padVm.LeftLinear.ToString();
                     ps.RightThumbLinear = padVm.RightLinear.ToString();
 
@@ -560,8 +571,10 @@ namespace PadForge.Services
                 padVm.LeftDeadZoneY = 0;
                 padVm.RightDeadZoneX = 0;
                 padVm.RightDeadZoneY = 0;
-                padVm.LeftAntiDeadZone = 0;
-                padVm.RightAntiDeadZone = 0;
+                padVm.LeftAntiDeadZoneX = 0;
+                padVm.LeftAntiDeadZoneY = 0;
+                padVm.RightAntiDeadZoneX = 0;
+                padVm.RightAntiDeadZoneY = 0;
                 padVm.LeftLinear = 0;
                 padVm.RightLinear = 0;
                 padVm.LeftTriggerDeadZone = 0;
@@ -765,6 +778,12 @@ namespace PadForge.Services
 
         [XmlElement]
         public int KeyCode { get; set; }
+
+        /// <summary>
+        /// Multi-key combo in "{Key1}{Key2}..." format. Takes precedence over KeyCode.
+        /// </summary>
+        [XmlElement]
+        public string KeyString { get; set; }
 
         [XmlElement]
         public int DurationMs { get; set; } = 50;

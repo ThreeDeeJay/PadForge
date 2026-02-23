@@ -1,6 +1,7 @@
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PadForge.Common.Input;
@@ -272,8 +273,11 @@ namespace PadForge.ViewModels
         private int _leftDeadZoneY;
         public int LeftDeadZoneY { get => _leftDeadZoneY; set => SetProperty(ref _leftDeadZoneY, Math.Clamp(value, 0, 100)); }
 
-        private int _leftAntiDeadZone;
-        public int LeftAntiDeadZone { get => _leftAntiDeadZone; set => SetProperty(ref _leftAntiDeadZone, Math.Clamp(value, 0, 100)); }
+        private int _leftAntiDeadZoneX;
+        public int LeftAntiDeadZoneX { get => _leftAntiDeadZoneX; set => SetProperty(ref _leftAntiDeadZoneX, Math.Clamp(value, 0, 100)); }
+
+        private int _leftAntiDeadZoneY;
+        public int LeftAntiDeadZoneY { get => _leftAntiDeadZoneY; set => SetProperty(ref _leftAntiDeadZoneY, Math.Clamp(value, 0, 100)); }
 
         private int _leftLinear;
         public int LeftLinear { get => _leftLinear; set => SetProperty(ref _leftLinear, Math.Clamp(value, 0, 100)); }
@@ -285,8 +289,11 @@ namespace PadForge.ViewModels
         private int _rightDeadZoneY;
         public int RightDeadZoneY { get => _rightDeadZoneY; set => SetProperty(ref _rightDeadZoneY, Math.Clamp(value, 0, 100)); }
 
-        private int _rightAntiDeadZone;
-        public int RightAntiDeadZone { get => _rightAntiDeadZone; set => SetProperty(ref _rightAntiDeadZone, Math.Clamp(value, 0, 100)); }
+        private int _rightAntiDeadZoneX;
+        public int RightAntiDeadZoneX { get => _rightAntiDeadZoneX; set => SetProperty(ref _rightAntiDeadZoneX, Math.Clamp(value, 0, 100)); }
+
+        private int _rightAntiDeadZoneY;
+        public int RightAntiDeadZoneY { get => _rightAntiDeadZoneY; set => SetProperty(ref _rightAntiDeadZoneY, Math.Clamp(value, 0, 100)); }
 
         private int _rightLinear;
         public int RightLinear { get => _rightLinear; set => SetProperty(ref _rightLinear, Math.Clamp(value, 0, 100)); }
@@ -390,6 +397,26 @@ namespace PadForge.ViewModels
 
         public event EventHandler TestRumbleRequested;
 
+        /// <summary>Raised to test only the left motor.</summary>
+        public event EventHandler TestLeftMotorRequested;
+        public void FireTestLeftMotor() => TestLeftMotorRequested?.Invoke(this, EventArgs.Empty);
+
+        /// <summary>Raised to test only the right motor.</summary>
+        public event EventHandler TestRightMotorRequested;
+        public void FireTestRightMotor() => TestRightMotorRequested?.Invoke(this, EventArgs.Empty);
+
+        /// <summary>
+        /// The TargetSettingName of the mapping currently being recorded
+        /// (single-click or Map All). Null when idle. Used to drive
+        /// controller-tab element flashing.
+        /// </summary>
+        private string _currentRecordingTarget;
+        public string CurrentRecordingTarget
+        {
+            get => _currentRecordingTarget;
+            set => SetProperty(ref _currentRecordingTarget, value);
+        }
+
         private RelayCommand _clearMappingsCommand;
         public RelayCommand ClearMappingsCommand =>
             _clearMappingsCommand ??= new RelayCommand(ClearAllMappings);
@@ -437,6 +464,111 @@ namespace PadForge.ViewModels
             _copyFromCommand ??= new RelayCommand(
                 () => CopyFromRequested?.Invoke(this, EventArgs.Empty),
                 () => HasSelectedDevice);
+
+        // ── Map All ──
+
+        /// <summary>Raised to request recording for the current Map All item.</summary>
+        public event EventHandler<MappingItem> MapAllRecordRequested;
+
+        /// <summary>Raised to cancel an in-progress Map All recording.</summary>
+        public event EventHandler MapAllCancelRequested;
+
+        private bool _isMapAllActive;
+        public bool IsMapAllActive
+        {
+            get => _isMapAllActive;
+            set => SetProperty(ref _isMapAllActive, value);
+        }
+
+        private int _mapAllCurrentIndex;
+        public int MapAllCurrentIndex
+        {
+            get => _mapAllCurrentIndex;
+            set => SetProperty(ref _mapAllCurrentIndex, value);
+        }
+
+        private string _mapAllCurrentTarget;
+        public string MapAllCurrentTarget
+        {
+            get => _mapAllCurrentTarget;
+            set => SetProperty(ref _mapAllCurrentTarget, value);
+        }
+
+        private string _mapAllPromptText;
+        /// <summary>Descriptive text shown on the Controller tab during Map All (e.g., "Press: A").</summary>
+        public string MapAllPromptText
+        {
+            get => _mapAllPromptText;
+            set => SetProperty(ref _mapAllPromptText, value);
+        }
+
+        /// <summary>Timer used to add a short delay between Map All entries.</summary>
+        private DispatcherTimer _mapAllDelayTimer;
+
+        private RelayCommand _mapAllCommand;
+        public RelayCommand MapAllCommand =>
+            _mapAllCommand ??= new RelayCommand(StartMapAll, () => HasSelectedDevice && !IsMapAllActive);
+
+        private void StartMapAll()
+        {
+            if (Mappings.Count == 0) return;
+            IsMapAllActive = true;
+            MapAllCurrentIndex = 0;
+            _mapAllCommand?.NotifyCanExecuteChanged();
+            AdvanceMapAll();
+        }
+
+        private void AdvanceMapAll()
+        {
+            if (!IsMapAllActive) return;
+
+            if (MapAllCurrentIndex >= Mappings.Count)
+            {
+                StopMapAll();
+                return;
+            }
+
+            var mapping = Mappings[MapAllCurrentIndex];
+            MapAllCurrentTarget = mapping.TargetSettingName;
+            CurrentRecordingTarget = mapping.TargetSettingName;
+            MapAllPromptText = $"Map: {mapping.TargetLabel}  ({MapAllCurrentIndex + 1}/{Mappings.Count})";
+            MapAllRecordRequested?.Invoke(this, mapping);
+        }
+
+        /// <summary>Called when a Map All recording completes (success or timeout). Advances to next after a short delay.</summary>
+        public void OnMapAllItemCompleted()
+        {
+            if (!IsMapAllActive) return;
+
+            // Short delay so analog input (axis return to center) doesn't
+            // accidentally trigger the next recording.
+            _mapAllDelayTimer?.Stop();
+            _mapAllDelayTimer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromMilliseconds(500)
+            };
+            _mapAllDelayTimer.Tick += (s, e) =>
+            {
+                _mapAllDelayTimer.Stop();
+                _mapAllDelayTimer = null;
+                if (!IsMapAllActive) return;
+                MapAllCurrentIndex++;
+                AdvanceMapAll();
+            };
+            _mapAllDelayTimer.Start();
+        }
+
+        public void StopMapAll()
+        {
+            _mapAllDelayTimer?.Stop();
+            _mapAllDelayTimer = null;
+            IsMapAllActive = false;
+            MapAllCurrentTarget = null;
+            CurrentRecordingTarget = null;
+            MapAllPromptText = null;
+            MapAllCancelRequested?.Invoke(this, EventArgs.Empty);
+            _mapAllCommand?.NotifyCanExecuteChanged();
+        }
 
         // ═══════════════════════════════════════════════
         //  State update (30Hz from InputService)

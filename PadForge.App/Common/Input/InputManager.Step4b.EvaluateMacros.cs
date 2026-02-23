@@ -160,20 +160,32 @@ namespace PadForge.Common.Input
                     break;
 
                 case MacroActionType.KeyPress:
-                    // Send key down, wait for duration, then key up + advance.
-                    if (actionElapsed < 1) // First frame: key down.
-                        SendKeyInput((ushort)action.KeyCode, keyUp: false);
+                {
+                    // Multi-key: press all keys in forward order, release in reverse.
+                    var keyCodes = action.ParsedKeyCodes;
+                    if (keyCodes.Length == 0) { AdvanceAction(macro); break; }
+                    if (actionElapsed < 1)
+                    {
+                        for (int k = 0; k < keyCodes.Length; k++)
+                            SendKeyInput((ushort)keyCodes[k], keyUp: false);
+                    }
                     if (actionElapsed >= action.DurationMs)
                     {
-                        SendKeyInput((ushort)action.KeyCode, keyUp: true);
+                        for (int k = keyCodes.Length - 1; k >= 0; k--)
+                            SendKeyInput((ushort)keyCodes[k], keyUp: true);
                         AdvanceAction(macro);
                     }
                     break;
+                }
 
                 case MacroActionType.KeyRelease:
-                    SendKeyInput((ushort)action.KeyCode, keyUp: true);
+                {
+                    var keyCodes = action.ParsedKeyCodes;
+                    for (int k = keyCodes.Length - 1; k >= 0; k--)
+                        SendKeyInput((ushort)keyCodes[k], keyUp: true);
                     AdvanceAction(macro);
                     break;
+                }
 
                 case MacroActionType.Delay:
                     // Wait for the specified duration.

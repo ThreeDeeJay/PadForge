@@ -139,45 +139,55 @@
                                 <Image Source="/Resources/Xbox Series Controller - Top.png" Stretch="Fill"/>
                                 <Canvas Width="768" Height="432">
 
-                                    <!-- LT trigger fill -->
-                                    <Border Canvas.Left="145" Canvas.Top="180" Width="93" Height="98"
-                                            Background="#30000000" CornerRadius="5" HorizontalAlignment="Left" VerticalAlignment="Top">
-                                        <Grid VerticalAlignment="Bottom">
-                                            <Rectangle Fill="#40FF9800" RadiusX="4" RadiusY="4"
-                                                       Width="93" HorizontalAlignment="Center"
-                                                       VerticalAlignment="Bottom"
-                                                       Height="{Binding LeftTrigger,
-                                                           Converter={StaticResource NormToTriggerHeightConverter},
-                                                           ConverterParameter=94}"/>
-                                        </Grid>
+                                    <!-- LT trigger — sliding bar -->
+                                    <Border Tag="LeftTrigger" Canvas.Left="145" Canvas.Top="180" Width="93" Height="98"
+                                            Background="#30000000" CornerRadius="5" ClipToBounds="True"
+                                            Cursor="Hand"
+                                            MouseEnter="ControllerElement_MouseEnter"
+                                            MouseLeave="ControllerElement_MouseLeave"
+                                            MouseLeftButtonDown="ControllerElement_Click">
+                                        <Canvas>
+                                            <Border Width="85" Height="20" CornerRadius="6"
+                                                    Background="#FF2196F3" Canvas.Left="4"
+                                                    Canvas.Top="{Binding LeftTrigger,
+                                                        Converter={StaticResource NormToTriggerSlideConverter},
+                                                        ConverterParameter='98,20'}"/>
+                                        </Canvas>
                                     </Border>
 
-                                    <!-- RT trigger fill -->
-                                    <Border Canvas.Left="529" Canvas.Top="180" Width="93" Height="98"
-                                            Background="#30000000" CornerRadius="5" HorizontalAlignment="Left" VerticalAlignment="Top">
-                                        <Grid VerticalAlignment="Bottom">
-                                            <Rectangle Fill="#40FF9800" RadiusX="4" RadiusY="4"
-                                                       Width="93" HorizontalAlignment="Center"
-                                                       VerticalAlignment="Bottom"
-                                                       Height="{Binding RightTrigger,
-                                                           Converter={StaticResource NormToTriggerHeightConverter},
-                                                           ConverterParameter=94}"/>
-                                        </Grid>
+                                    <!-- RT trigger — sliding bar -->
+                                    <Border Tag="RightTrigger" Canvas.Left="529" Canvas.Top="180" Width="93" Height="98"
+                                            Background="#30000000" CornerRadius="5" ClipToBounds="True"
+                                            Cursor="Hand"
+                                            MouseEnter="ControllerElement_MouseEnter"
+                                            MouseLeave="ControllerElement_MouseLeave"
+                                            MouseLeftButtonDown="ControllerElement_Click">
+                                        <Canvas>
+                                            <Border Width="85" Height="20" CornerRadius="6"
+                                                    Background="#FF2196F3" Canvas.Left="4"
+                                                    Canvas.Top="{Binding RightTrigger,
+                                                        Converter={StaticResource NormToTriggerSlideConverter},
+                                                        ConverterParameter='98,20'}"/>
+                                        </Canvas>
                                     </Border>
 
-                                    <!-- Left shoulder rectangle -->
-                                    <Border Canvas.Left="149" Canvas.Top="278" Width="142" Height="72" CornerRadius="6"
-                                            Background="#FF607D8B"
-                                            Opacity="{Binding LeftShoulder, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6' }"/>
+                                    <!-- Left shoulder — invisible when idle, light blue when pressed -->
+                                    <Border Tag="LeftShoulder" Canvas.Left="149" Canvas.Top="278" Width="142" Height="72" CornerRadius="6"
+                                            Background="#FF2196F3"
+                                            Opacity="{Binding LeftShoulder, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.7'}"
+                                            Cursor="Hand"
+                                            MouseEnter="ControllerElement_MouseEnter"
+                                            MouseLeave="ControllerElement_MouseLeave"
+                                            MouseLeftButtonDown="ControllerElement_Click"/>
 
-                                    <!-- Right shoulder rectangle -->
-                                    <Border Canvas.Left="477" Canvas.Top="278" Width="142" Height="72" CornerRadius="6"
-                                            Background="#FF607D8B"
-                                            Opacity="{Binding RightShoulder, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6' }"/>
-
-                                    <!-- LB bumper highlight -->
-
-                                    <!-- RB bumper highlight -->
+                                    <!-- Right shoulder — invisible when idle, light blue when pressed -->
+                                    <Border Tag="RightShoulder" Canvas.Left="477" Canvas.Top="278" Width="142" Height="72" CornerRadius="6"
+                                            Background="#FF2196F3"
+                                            Opacity="{Binding RightShoulder, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.7'}"
+                                            Cursor="Hand"
+                                            MouseEnter="ControllerElement_MouseEnter"
+                                            MouseLeave="ControllerElement_MouseLeave"
+                                            MouseLeftButtonDown="ControllerElement_Click"/>
 
                                 </Canvas>
                         </Grid>
@@ -201,10 +211,28 @@
                                                      Converter={StaticResource NormToCanvasConverter}, ConverterParameter='84,45'}"/>
                                     </Canvas>
                                     <!-- LS click glow -->
-                                    <Ellipse Canvas.Left="190" Canvas.Top="158" Width="84" Height="84"
+                                    <Ellipse Tag="LeftThumbButton" Canvas.Left="190" Canvas.Top="158" Width="84" Height="84"
                                              Fill="Transparent" Stroke="#FF2196F3" StrokeThickness="3"
                                              Opacity="{Binding LeftThumbButton,
-                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.7'}"/>
+                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.7'}"
+                                             Cursor="Hand"
+                                             MouseEnter="ControllerElement_MouseEnter"
+                                             MouseLeave="ControllerElement_MouseLeave"
+                                             MouseLeftButtonDown="ControllerElement_Click"/>
+                                    <!-- Left stick — Up arrow (Y axis) -->
+                                    <Polygon Tag="LeftThumbAxisY" Canvas.Left="216" Canvas.Top="126"
+                                             Points="14,0 28,26 0,26" Fill="#FF2196F3" Opacity="0.15"
+                                             Cursor="Hand"
+                                             MouseEnter="ControllerElement_MouseEnter"
+                                             MouseLeave="ControllerElement_MouseLeave"
+                                             MouseLeftButtonDown="ControllerElement_Click"/>
+                                    <!-- Left stick — Right arrow (X axis) -->
+                                    <Polygon Tag="LeftThumbAxisX" Canvas.Left="278" Canvas.Top="184"
+                                             Points="0,0 26,14 0,28" Fill="#FF2196F3" Opacity="0.15"
+                                             Cursor="Hand"
+                                             MouseEnter="ControllerElement_MouseEnter"
+                                             MouseLeave="ControllerElement_MouseLeave"
+                                             MouseLeftButtonDown="ControllerElement_Click"/>
 
                                     <!-- ── RIGHT STICK ── -->
                                     <Canvas Canvas.Left="421" Canvas.Top="250" Width="84" Height="84" ClipToBounds="True">
@@ -218,72 +246,78 @@
                                                      Converter={StaticResource NormToCanvasConverter}, ConverterParameter='84,45'}"/>
                                     </Canvas>
                                     <!-- RS click glow -->
-                                    <Ellipse Canvas.Left="421" Canvas.Top="250" Width="84" Height="84"
+                                    <Ellipse Tag="RightThumbButton" Canvas.Left="421" Canvas.Top="250" Width="84" Height="84"
                                              Fill="Transparent" Stroke="#FF2196F3" StrokeThickness="3"
                                              Opacity="{Binding RightThumbButton,
-                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.7'}"/>
+                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.7'}"
+                                             Cursor="Hand"
+                                             MouseEnter="ControllerElement_MouseEnter"
+                                             MouseLeave="ControllerElement_MouseLeave"
+                                             MouseLeftButtonDown="ControllerElement_Click"/>
+                                    <!-- Right stick — Up arrow (Y axis) -->
+                                    <Polygon Tag="RightThumbAxisY" Canvas.Left="447" Canvas.Top="218"
+                                             Points="14,0 28,26 0,26" Fill="#FF2196F3" Opacity="0.15"
+                                             Cursor="Hand"
+                                             MouseEnter="ControllerElement_MouseEnter"
+                                             MouseLeave="ControllerElement_MouseLeave"
+                                             MouseLeftButtonDown="ControllerElement_Click"/>
+                                    <!-- Right stick — Right arrow (X axis) -->
+                                    <Polygon Tag="RightThumbAxisX" Canvas.Left="509" Canvas.Top="276"
+                                             Points="0,0 26,14 0,28" Fill="#FF2196F3" Opacity="0.15"
+                                             Cursor="Hand"
+                                             MouseEnter="ControllerElement_MouseEnter"
+                                             MouseLeave="ControllerElement_MouseLeave"
+                                             MouseLeftButtonDown="ControllerElement_Click"/>
 
-                                    <!-- ── D-PAD DIRECTION HIGHLIGHTS ── -->
-                                    <Rectangle Canvas.Left="291" Canvas.Top="255" Width="30" Height="30"
-                                               Fill="#FF4CAF50" RadiusX="3" RadiusY="3"
-                                               Opacity="{Binding DPadUp,
-                                                   Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.6'}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
-                                    <Rectangle Canvas.Left="291" Canvas.Top="314" Width="30" Height="30"
-                                               Fill="#FF4CAF50" RadiusX="3" RadiusY="3"
-                                               Opacity="{Binding DPadDown,
-                                                   Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.6'}" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-                                    <Rectangle Canvas.Left="260" Canvas.Top="284" Width="30" Height="30"
-                                               Fill="#FF4CAF50" RadiusX="3" RadiusY="3"
-                                               Opacity="{Binding DPadLeft,
-                                                   Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.6'}" HorizontalAlignment="Left" VerticalAlignment="Top"/>
-                                    <Rectangle Canvas.Left="321" Canvas.Top="284" Width="30" Height="30"
-                                               Fill="#FF4CAF50" RadiusX="3" RadiusY="3"
-                                               Opacity="{Binding DPadRight,
-                                                   Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.6'}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+                                    <!-- ── D-PAD DIRECTION HIGHLIGHTS — unified light blue ── -->
+                                    <Rectangle Tag="DPadUp" Canvas.Left="291" Canvas.Top="255" Width="30" Height="30"
+                                               Fill="#FF2196F3" RadiusX="3" RadiusY="3" Cursor="Hand"
+                                               Opacity="{Binding DPadUp, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.6'}"
+                                               MouseEnter="ControllerElement_MouseEnter" MouseLeave="ControllerElement_MouseLeave" MouseLeftButtonDown="ControllerElement_Click"/>
+                                    <Rectangle Tag="DPadDown" Canvas.Left="291" Canvas.Top="314" Width="30" Height="30"
+                                               Fill="#FF2196F3" RadiusX="3" RadiusY="3" Cursor="Hand"
+                                               Opacity="{Binding DPadDown, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.6'}"
+                                               MouseEnter="ControllerElement_MouseEnter" MouseLeave="ControllerElement_MouseLeave" MouseLeftButtonDown="ControllerElement_Click"/>
+                                    <Rectangle Tag="DPadLeft" Canvas.Left="260" Canvas.Top="284" Width="30" Height="30"
+                                               Fill="#FF2196F3" RadiusX="3" RadiusY="3" Cursor="Hand"
+                                               Opacity="{Binding DPadLeft, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.6'}"
+                                               MouseEnter="ControllerElement_MouseEnter" MouseLeave="ControllerElement_MouseLeave" MouseLeftButtonDown="ControllerElement_Click"/>
+                                    <Rectangle Tag="DPadRight" Canvas.Left="321" Canvas.Top="284" Width="30" Height="30"
+                                               Fill="#FF2196F3" RadiusX="3" RadiusY="3" Cursor="Hand"
+                                               Opacity="{Binding DPadRight, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0,0.6'}"
+                                               MouseEnter="ControllerElement_MouseEnter" MouseLeave="ControllerElement_MouseLeave" MouseLeftButtonDown="ControllerElement_Click"/>
 
-                                    <!-- ── ABXY BUTTONS ── -->
-                                    <!-- A (bottom, green) -->
-                                    <Ellipse Canvas.Left="517" Canvas.Top="222" Width="40" Height="40"
-                                             Fill="#FF4CAF50"
-                                             Opacity="{Binding ButtonA,
-                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
+                                    <!-- ── ABXY BUTTONS — unified light blue ── -->
+                                    <Ellipse Tag="ButtonA" Canvas.Left="517" Canvas.Top="222" Width="40" Height="40"
+                                             Fill="#FF2196F3" Cursor="Hand"
+                                             Opacity="{Binding ButtonA, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}"
+                                             MouseEnter="ControllerElement_MouseEnter" MouseLeave="ControllerElement_MouseLeave" MouseLeftButtonDown="ControllerElement_Click"/>
+                                    <Ellipse Tag="ButtonB" Canvas.Left="558" Canvas.Top="184" Width="40" Height="40"
+                                             Fill="#FF2196F3" Cursor="Hand"
+                                             Opacity="{Binding ButtonB, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}"
+                                             MouseEnter="ControllerElement_MouseEnter" MouseLeave="ControllerElement_MouseLeave" MouseLeftButtonDown="ControllerElement_Click"/>
+                                    <Ellipse Tag="ButtonX" Canvas.Left="477" Canvas.Top="182" Width="40" Height="40"
+                                             Fill="#FF2196F3" Cursor="Hand"
+                                             Opacity="{Binding ButtonX, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}"
+                                             MouseEnter="ControllerElement_MouseEnter" MouseLeave="ControllerElement_MouseLeave" MouseLeftButtonDown="ControllerElement_Click"/>
+                                    <Ellipse Tag="ButtonY" Canvas.Left="517" Canvas.Top="143" Width="40" Height="40"
+                                             Fill="#FF2196F3" Cursor="Hand"
+                                             Opacity="{Binding ButtonY, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}"
+                                             MouseEnter="ControllerElement_MouseEnter" MouseLeave="ControllerElement_MouseLeave" MouseLeftButtonDown="ControllerElement_Click"/>
 
-                                    <!-- B (right, red) -->
-                                    <Ellipse Canvas.Left="558" Canvas.Top="184" Width="40" Height="40"
-                                             Fill="#FFF44336"
-                                             Opacity="{Binding ButtonB,
-                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-
-                                    <!-- X (left, blue) -->
-                                    <Ellipse Canvas.Left="477" Canvas.Top="182" Width="40" Height="40"
-                                             Fill="#FF2196F3"
-                                             Opacity="{Binding ButtonX,
-                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
-
-                                    <!-- Y (top, yellow) -->
-                                    <Ellipse Canvas.Left="517" Canvas.Top="143" Width="40" Height="40"
-                                             Fill="#FFFFEB3B"
-                                             Opacity="{Binding ButtonY,
-                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Left" VerticalAlignment="Center"/>
-
-                                    <!-- ── CENTER BUTTONS ── -->
-                                    <!-- Guide (Xbox logo) -->
-                                    <Ellipse Canvas.Left="360" Canvas.Top="116" Width="50" Height="50"
-                                             Fill="#FF7B1FA2"
-                                             Opacity="{Binding ButtonGuide,
-                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}" HorizontalAlignment="Center" VerticalAlignment="Top"/>
-
-                                    <!-- View (Back) -->
-                                    <Ellipse Canvas.Left="327" Canvas.Top="188" Width="26" Height="26"
-                                             Fill="#FF607D8B"
-                                             Opacity="{Binding ButtonBack,
-                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}"/>
-
-                                    <!-- Menu (Start) -->
-                                    <Ellipse Canvas.Left="415" Canvas.Top="188" Width="26" Height="26"
-                                             Fill="#FF607D8B"
-                                             Opacity="{Binding ButtonStart,
-                                                 Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}"/>
+                                    <!-- ── CENTER BUTTONS — unified light blue ── -->
+                                    <Ellipse Tag="ButtonGuide" Canvas.Left="360" Canvas.Top="116" Width="50" Height="50"
+                                             Fill="#FF2196F3" Cursor="Hand"
+                                             Opacity="{Binding ButtonGuide, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}"
+                                             MouseEnter="ControllerElement_MouseEnter" MouseLeave="ControllerElement_MouseLeave" MouseLeftButtonDown="ControllerElement_Click"/>
+                                    <Ellipse Tag="ButtonBack" Canvas.Left="327" Canvas.Top="188" Width="26" Height="26"
+                                             Fill="#FF2196F3" Cursor="Hand"
+                                             Opacity="{Binding ButtonBack, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}"
+                                             MouseEnter="ControllerElement_MouseEnter" MouseLeave="ControllerElement_MouseLeave" MouseLeftButtonDown="ControllerElement_Click"/>
+                                    <Ellipse Tag="ButtonStart" Canvas.Left="415" Canvas.Top="188" Width="26" Height="26"
+                                             Fill="#FF2196F3" Cursor="Hand"
+                                             Opacity="{Binding ButtonStart, Converter={StaticResource BoolToOpacityConverter}, ConverterParameter='0.1,0.6'}"
+                                             MouseEnter="ControllerElement_MouseEnter" MouseLeave="ControllerElement_MouseLeave" MouseLeftButtonDown="ControllerElement_Click"/>
 
                                 </Canvas>
                         </Grid>
@@ -298,13 +332,17 @@
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
 
-                            <StackPanel Grid.Column="0">
-                                <TextBlock Text="L Motor" FontSize="16"
+                            <StackPanel Grid.Column="0" Cursor="Hand"
+                                        MouseEnter="Motor_MouseEnter" MouseLeave="Motor_MouseLeave"
+                                        MouseLeftButtonDown="LeftMotor_Click"
+                                        ToolTip="Click to test left motor"
+                                        Background="Transparent">
+                                <TextBlock Text="L Motor" FontSize="26"
                                            Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                                            HorizontalAlignment="Center" Margin="0,0,0,4"/>
-                                <Border Height="10" Background="#FF1E1E21" CornerRadius="3"
+                                <Border Height="50" Background="#FF1E1E21" CornerRadius="3"
                                         BorderBrush="#FF3F3F46" BorderThickness="1">
-                                    <Rectangle Fill="#FF9C27B0" RadiusX="2" RadiusY="2"
+                                    <Rectangle Fill="#FF2196F3" RadiusX="2" RadiusY="2"
                                                HorizontalAlignment="Left"
                                                Width="{Binding LeftMotorDisplay,
                                                    Converter={StaticResource NormToTriggerHeightConverter},
@@ -312,13 +350,17 @@
                                 </Border>
                             </StackPanel>
 
-                            <StackPanel Grid.Column="2">
-                                <TextBlock Text="R Motor" FontSize="16"
+                            <StackPanel Grid.Column="2" Cursor="Hand"
+                                        MouseEnter="Motor_MouseEnter" MouseLeave="Motor_MouseLeave"
+                                        MouseLeftButtonDown="RightMotor_Click"
+                                        ToolTip="Click to test right motor"
+                                        Background="Transparent">
+                                <TextBlock Text="R Motor" FontSize="26"
                                            Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                                            HorizontalAlignment="Center" Margin="0,0,0,4"/>
-                                <Border Height="10" Background="#FF1E1E21" CornerRadius="3"
+                                <Border Height="50" Background="#FF1E1E21" CornerRadius="3"
                                         BorderBrush="#FF3F3F46" BorderThickness="1">
-                                    <Rectangle Fill="#FF9C27B0" RadiusX="2" RadiusY="2"
+                                    <Rectangle Fill="#FF2196F3" RadiusX="2" RadiusY="2"
                                                HorizontalAlignment="Left"
                                                Width="{Binding RightMotorDisplay,
                                                    Converter={StaticResource NormToTriggerHeightConverter},
@@ -326,6 +368,22 @@
                                 </Border>
                             </StackPanel>
                         </Grid>
+
+                        <!-- ══════════════════════════════════════
+                             MAP ALL — Controller tab controls
+                             ══════════════════════════════════════ -->
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,10,0,4">
+                            <Button Content="Map All" Command="{Binding MapAllCommand}"
+                                    Padding="32,14" Margin="0,0,16,0" FontSize="36"
+                                    ToolTip="Sequentially record all mappings — press a button/axis for each prompt"/>
+                            <Button Content="Stop" Padding="24,10" FontSize="30"
+                                    Visibility="{Binding IsMapAllActive, Converter={StaticResource BoolToVisibilityConverter}}"
+                                    Click="MapAllStop_Click"/>
+                            <TextBlock Text="{Binding MapAllPromptText}" FontSize="36" FontWeight="SemiBold"
+                                       VerticalAlignment="Center" Margin="16,0,0,0"
+                                       Foreground="#FF2196F3"
+                                       Visibility="{Binding MapAllPromptText, Converter={StaticResource NullToCollapsedConverter}}"/>
+                        </StackPanel>
 
                     </StackPanel>
                 </Viewbox>
@@ -352,6 +410,9 @@
                         <Button Content="Copy From..." Command="{Binding CopyFromCommand}"
                                 Padding="8,4" Margin="0,0,8,0"
                                 ToolTip="Copy settings from another configured device"/>
+                        <Button Content="Map All" Command="{Binding MapAllCommand}"
+                                Padding="8,4" Margin="0,0,8,0"
+                                ToolTip="Sequentially record all mappings one by one"/>
                         <TextBlock Text="Click a mapping row and press a button/axis on your controller to assign it."
                                    VerticalAlignment="Center" FontStyle="Italic"
                                    Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
@@ -369,6 +430,35 @@
                               GridLinesVisibility="Horizontal"
                               IsReadOnly="True"
                               VerticalScrollBarVisibility="Auto">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="Background">
+                                    <Setter.Value>
+                                        <SolidColorBrush Color="Transparent"/>
+                                    </Setter.Value>
+                                </Setter>
+                                <Setter Property="Foreground"
+                                        Value="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsRecording}" Value="True">
+                                        <DataTrigger.EnterActions>
+                                            <BeginStoryboard x:Name="RecordFlash">
+                                                <Storyboard>
+                                                    <ColorAnimation
+                                                        Storyboard.TargetProperty="(DataGridRow.Background).(SolidColorBrush.Color)"
+                                                        From="#002196F3" To="#602196F3"
+                                                        Duration="0:0:0.4" AutoReverse="True"
+                                                        RepeatBehavior="Forever"/>
+                                                </Storyboard>
+                                            </BeginStoryboard>
+                                        </DataTrigger.EnterActions>
+                                        <DataTrigger.ExitActions>
+                                            <StopStoryboard BeginStoryboardName="RecordFlash"/>
+                                        </DataTrigger.ExitActions>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
                         <DataGrid.Columns>
                             <DataGridTextColumn Header="XInput Output"
                                                 Binding="{Binding TargetLabel}"
@@ -445,12 +535,21 @@
                                        Style="{StaticResource DzValue}"/>
                         </StackPanel>
 
-                        <!-- Anti-Dead Zone -->
+                        <!-- Anti-Dead Zone X -->
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <TextBlock Text="Anti-Dead Zone:" Style="{StaticResource DzLabel}"/>
-                            <Slider Value="{Binding LeftAntiDeadZone, Mode=TwoWay}"
+                            <TextBlock Text="Anti-Dead Zone X:" Style="{StaticResource DzLabel}"/>
+                            <Slider Value="{Binding LeftAntiDeadZoneX, Mode=TwoWay}"
                                     Style="{StaticResource DzSlider}"/>
-                            <TextBlock Text="{Binding LeftAntiDeadZone, StringFormat='{}{0}%'}"
+                            <TextBlock Text="{Binding LeftAntiDeadZoneX, StringFormat='{}{0}%'}"
+                                       Style="{StaticResource DzValue}"/>
+                        </StackPanel>
+
+                        <!-- Anti-Dead Zone Y -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Anti-Dead Zone Y:" Style="{StaticResource DzLabel}"/>
+                            <Slider Value="{Binding LeftAntiDeadZoneY, Mode=TwoWay}"
+                                    Style="{StaticResource DzSlider}"/>
+                            <TextBlock Text="{Binding LeftAntiDeadZoneY, StringFormat='{}{0}%'}"
                                        Style="{StaticResource DzValue}"/>
                         </StackPanel>
 
@@ -468,11 +567,14 @@
                         <!-- Live preview -->
                         <TextBlock Text="Live Preview" FontWeight="SemiBold" Margin="0,0,0,8"
                                    Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-                        <Grid Width="200" Height="200" HorizontalAlignment="Left">
-                            <Border BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                                    BorderThickness="1" CornerRadius="100"
-                                    Background="{DynamicResource ControlFillColorDefaultBrush}">
-                                <Canvas ClipToBounds="True">
+                        <Border BorderBrush="#FF3F3F46" BorderThickness="2" CornerRadius="2"
+                                Padding="4" Width="212" Height="212" HorizontalAlignment="Left"
+                                ClipToBounds="True">
+                            <Grid Width="200" Height="200">
+                                <!-- Circle background fill -->
+                                <Ellipse Width="200" Height="200"
+                                         Fill="{DynamicResource ControlFillColorDefaultBrush}"/>
+                                <Canvas>
                                     <!-- Boundary circle -->
                                     <Ellipse Width="196" Height="196" Canvas.Left="2" Canvas.Top="2"
                                              Stroke="{DynamicResource ControlStrokeColorDefaultBrush}"
@@ -511,13 +613,13 @@
                                           Stroke="{DynamicResource ControlStrokeColorSecondaryBrush}"
                                           StrokeThickness="0.5"/>
                                     <!-- Stick position dot -->
-                                    <Ellipse Width="14" Height="14" Fill="#FF2196F3"
+                                    <Ellipse Width="45" Height="45" Fill="#FF2196F3"
                                              Stroke="#FF1976D2" StrokeThickness="1.5"
-                                             Canvas.Left="{Binding ThumbLX, Converter={StaticResource NormToCanvasConverter}, ConverterParameter=200}"
-                                             Canvas.Top="{Binding ThumbLY, Converter={StaticResource NormToCanvasConverter}, ConverterParameter=200}"/>
+                                             Canvas.Left="{Binding ThumbLX, Converter={StaticResource NormToCanvasConverter}, ConverterParameter='200,45'}"
+                                             Canvas.Top="{Binding ThumbLY, Converter={StaticResource NormToCanvasConverter}, ConverterParameter='200,45'}"/>
                                 </Canvas>
-                            </Border>
-                        </Grid>
+                            </Grid>
+                        </Border>
                         <TextBlock Margin="0,4,0,0"
                                    Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}">
                             <Run Text="X:"/>
@@ -555,12 +657,21 @@
                                        Style="{StaticResource DzValue}"/>
                         </StackPanel>
 
-                        <!-- Anti-Dead Zone -->
+                        <!-- Anti-Dead Zone X -->
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
-                            <TextBlock Text="Anti-Dead Zone:" Style="{StaticResource DzLabel}"/>
-                            <Slider Value="{Binding RightAntiDeadZone, Mode=TwoWay}"
+                            <TextBlock Text="Anti-Dead Zone X:" Style="{StaticResource DzLabel}"/>
+                            <Slider Value="{Binding RightAntiDeadZoneX, Mode=TwoWay}"
                                     Style="{StaticResource DzSlider}"/>
-                            <TextBlock Text="{Binding RightAntiDeadZone, StringFormat='{}{0}%'}"
+                            <TextBlock Text="{Binding RightAntiDeadZoneX, StringFormat='{}{0}%'}"
+                                       Style="{StaticResource DzValue}"/>
+                        </StackPanel>
+
+                        <!-- Anti-Dead Zone Y -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                            <TextBlock Text="Anti-Dead Zone Y:" Style="{StaticResource DzLabel}"/>
+                            <Slider Value="{Binding RightAntiDeadZoneY, Mode=TwoWay}"
+                                    Style="{StaticResource DzSlider}"/>
+                            <TextBlock Text="{Binding RightAntiDeadZoneY, StringFormat='{}{0}%'}"
                                        Style="{StaticResource DzValue}"/>
                         </StackPanel>
 
@@ -578,11 +689,14 @@
                         <!-- Live preview -->
                         <TextBlock Text="Live Preview" FontWeight="SemiBold" Margin="0,0,0,8"
                                    Foreground="{DynamicResource SystemControlForegroundBaseHighBrush}"/>
-                        <Grid Width="200" Height="200" HorizontalAlignment="Left">
-                            <Border BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
-                                    BorderThickness="1" CornerRadius="100"
-                                    Background="{DynamicResource ControlFillColorDefaultBrush}">
-                                <Canvas ClipToBounds="True">
+                        <Border BorderBrush="#FF3F3F46" BorderThickness="2" CornerRadius="2"
+                                Padding="4" Width="212" Height="212" HorizontalAlignment="Left"
+                                ClipToBounds="True">
+                            <Grid Width="200" Height="200">
+                                <!-- Circle background fill -->
+                                <Ellipse Width="200" Height="200"
+                                         Fill="{DynamicResource ControlFillColorDefaultBrush}"/>
+                                <Canvas>
                                     <!-- Boundary circle -->
                                     <Ellipse Width="196" Height="196" Canvas.Left="2" Canvas.Top="2"
                                              Stroke="{DynamicResource ControlStrokeColorDefaultBrush}"
@@ -621,13 +735,13 @@
                                           Stroke="{DynamicResource ControlStrokeColorSecondaryBrush}"
                                           StrokeThickness="0.5"/>
                                     <!-- Stick position dot -->
-                                    <Ellipse Width="14" Height="14" Fill="#FF2196F3"
+                                    <Ellipse Width="45" Height="45" Fill="#FF2196F3"
                                              Stroke="#FF1976D2" StrokeThickness="1.5"
-                                             Canvas.Left="{Binding ThumbRX, Converter={StaticResource NormToCanvasConverter}, ConverterParameter=200}"
-                                             Canvas.Top="{Binding ThumbRY, Converter={StaticResource NormToCanvasConverter}, ConverterParameter=200}"/>
+                                             Canvas.Left="{Binding ThumbRX, Converter={StaticResource NormToCanvasConverter}, ConverterParameter='200,45'}"
+                                             Canvas.Top="{Binding ThumbRY, Converter={StaticResource NormToCanvasConverter}, ConverterParameter='200,45'}"/>
                                 </Canvas>
-                            </Border>
-                        </Grid>
+                            </Grid>
+                        </Border>
                         <TextBlock Margin="0,4,0,0"
                                    Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}">
                             <Run Text="X:"/>
@@ -892,25 +1006,42 @@
                                         </ComboBox>
                                     </StackPanel>
 
-                                    <!-- Button flags (hex) — for ButtonPress / ButtonRelease -->
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                        <TextBlock Text="Buttons:" VerticalAlignment="Center"
-                                                   Width="80" Margin="0,0,8,0"/>
-                                        <TextBox Text="{Binding ButtonFlags, Mode=TwoWay,
-                                                     StringFormat=X4}" Width="80"/>
-                                        <TextBlock Text="(hex flags: A=1000, B=2000, X=4000, Y=8000, LB=0100, RB=0200)"
-                                                   VerticalAlignment="Center" Margin="8,0,0,0" FontSize="11"
-                                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                    <!-- Button flags — checkbox grid for ButtonPress / ButtonRelease -->
+                                    <StackPanel Margin="0,0,0,6">
+                                        <TextBlock Text="Buttons:" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                        <ItemsControl ItemsSource="{Binding ButtonOptions}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel Orientation="Horizontal"/>
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox Content="{Binding Label}"
+                                                              IsChecked="{Binding IsChecked, Mode=TwoWay}"
+                                                              MinWidth="70" Margin="0,0,8,4"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </StackPanel>
 
-                                    <!-- Key code — for KeyPress / KeyRelease -->
-                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                        <TextBlock Text="Key Code:" VerticalAlignment="Center"
-                                                   Width="80" Margin="0,0,8,0"/>
-                                        <ComboBox ItemsSource="{x:Static vm:MacroAction.VirtualKeyValues}"
-                                                  SelectedItem="{Binding SelectedVirtualKey, Mode=TwoWay}"
-                                                  IsEditable="True" IsTextSearchEnabled="True"
-                                                  MinWidth="180" MaxDropDownHeight="300"/>
+                                    <!-- Key combo — for KeyPress / KeyRelease -->
+                                    <StackPanel Margin="0,0,0,6">
+                                        <TextBlock Text="Key Combo:" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                        <TextBox Text="{Binding KeyString, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                 FontFamily="Consolas" Margin="0,0,0,4"
+                                                 ToolTip="Key combo in {Key1}{Key2} format — editable"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <ComboBox ItemsSource="{x:Static vm:MacroAction.VirtualKeyValues}"
+                                                      SelectedItem="{Binding SelectedKeyToAdd, Mode=TwoWay}"
+                                                      MinWidth="180" MaxDropDownHeight="300"
+                                                      IsTextSearchEnabled="True"/>
+                                            <Button Content="Clear" Command="{Binding ClearKeyStringCommand}"
+                                                    Padding="8,4" Margin="4,0,0,0"/>
+                                        </StackPanel>
+                                        <TextBlock Text="Select a key to add it. Example: {Control}{Alt}{Delete}"
+                                                   FontSize="11" Margin="0,4,0,0" TextWrapping="Wrap"
+                                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                                     </StackPanel>
 
                                     <!-- Duration — for ButtonPress / KeyPress / Delay -->

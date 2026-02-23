@@ -81,13 +81,23 @@ namespace PadForge
                 _viewModel.StatusText = "Device list refreshed.";
             };
 
-            // Wire test rumble for each pad.
+            // Wire test rumble for each pad (both motors, or individual).
             foreach (var pad in _viewModel.Pads)
             {
                 pad.TestRumbleRequested += (s, e) =>
                 {
                     if (s is PadViewModel pvm)
                         _inputService.SendTestRumble(pvm.PadIndex);
+                };
+                pad.TestLeftMotorRequested += (s, e) =>
+                {
+                    if (s is PadViewModel pvm)
+                        _inputService.SendTestRumble(pvm.PadIndex, true, false);
+                };
+                pad.TestRightMotorRequested += (s, e) =>
+                {
+                    if (s is PadViewModel pvm)
+                        _inputService.SendTestRumble(pvm.PadIndex, false, true);
                 };
             }
 
@@ -101,6 +111,7 @@ namespace PadForge
                     {
                         if (s is MappingItem mi)
                         {
+                            capturedPad.CurrentRecordingTarget = mi.TargetSettingName;
                             Guid deviceGuid = capturedPad.SelectedMappedDevice?.InstanceGuid ?? Guid.Empty;
                             _recorderService.StartRecording(mi, capturedPad.PadIndex, deviceGuid);
                         }
@@ -110,9 +121,60 @@ namespace PadForge
                 }
             }
 
-            // Recorder completion marks settings dirty.
+            // Recorder completion marks settings dirty + clear flash + advance Map All.
             _recorderService.RecordingCompleted += (s, result) =>
+            {
                 _settingsService.MarkDirty();
+                var activePad = _viewModel.SelectedPad;
+                if (activePad != null)
+                {
+                    if (activePad.IsMapAllActive)
+                        activePad.OnMapAllItemCompleted();
+                    else
+                        activePad.CurrentRecordingTarget = null;
+                }
+            };
+
+            // Recording timeout clears flash + advances Map All.
+            _recorderService.RecordingTimedOut += (s, e) =>
+            {
+                var activePad = _viewModel.SelectedPad;
+                if (activePad != null)
+                {
+                    if (activePad.IsMapAllActive)
+                        activePad.OnMapAllItemCompleted();
+                    else
+                        activePad.CurrentRecordingTarget = null;
+                }
+            };
+
+            // Wire click-to-record from controller visual elements.
+            PadPageView.ControllerElementRecordRequested += (s, targetName) =>
+            {
+                var padVm = _viewModel.SelectedPad;
+                if (padVm == null) return;
+
+                var mapping = padVm.Mappings.FirstOrDefault(m =>
+                    string.Equals(m.TargetSettingName, targetName, StringComparison.OrdinalIgnoreCase));
+                if (mapping == null) return;
+
+                padVm.CurrentRecordingTarget = targetName;
+                Guid deviceGuid = padVm.SelectedMappedDevice?.InstanceGuid ?? Guid.Empty;
+                _recorderService.StartRecording(mapping, padVm.PadIndex, deviceGuid);
+            };
+
+            // Wire Map All events for each pad.
+            foreach (var pad in _viewModel.Pads)
+            {
+                var capturedPad = pad;
+                pad.MapAllRecordRequested += (s, mapping) =>
+                {
+                    Guid deviceGuid = capturedPad.SelectedMappedDevice?.InstanceGuid ?? Guid.Empty;
+                    _recorderService.StartRecording(mapping, capturedPad.PadIndex, deviceGuid);
+                };
+                pad.MapAllCancelRequested += (s, e) =>
+                    _recorderService.CancelRecording();
+            }
 
             // Wire macro trigger recording for each pad.
             foreach (var pad in _viewModel.Pads)

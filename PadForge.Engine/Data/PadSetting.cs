@@ -126,8 +126,20 @@ namespace PadForge.Engine.Data
         /// </summary>
         [XmlElement] public string LeftThumbAntiDeadZone { get; set; } = "0";
 
-        /// <summary>Right stick anti-dead zone (0–100%).</summary>
+        /// <summary>Right stick anti-dead zone (0–100%). Legacy unified property — use per-axis X/Y instead.</summary>
         [XmlElement] public string RightThumbAntiDeadZone { get; set; } = "0";
+
+        /// <summary>Left stick anti-dead zone X axis (0–100%).</summary>
+        [XmlElement] public string LeftThumbAntiDeadZoneX { get; set; } = "0";
+
+        /// <summary>Left stick anti-dead zone Y axis (0–100%).</summary>
+        [XmlElement] public string LeftThumbAntiDeadZoneY { get; set; } = "0";
+
+        /// <summary>Right stick anti-dead zone X axis (0–100%).</summary>
+        [XmlElement] public string RightThumbAntiDeadZoneX { get; set; } = "0";
+
+        /// <summary>Right stick anti-dead zone Y axis (0–100%).</summary>
+        [XmlElement] public string RightThumbAntiDeadZoneY { get; set; } = "0";
 
         /// <summary>
         /// Left stick linear response curve (0–100%). 0 = default, 100 = fully linear.
@@ -224,6 +236,33 @@ namespace PadForge.Engine.Data
         [XmlElement] public string GameFileName { get; set; } = "";
 
         // ─────────────────────────────────────────────
+        //  Migration
+        // ─────────────────────────────────────────────
+
+        /// <summary>
+        /// Migrates legacy unified anti-dead zone values to per-axis properties.
+        /// Call after deserialization when loading old settings files.
+        /// </summary>
+        public void MigrateAntiDeadZones()
+        {
+            if (IsEmptyOrZero(LeftThumbAntiDeadZoneX) && IsEmptyOrZero(LeftThumbAntiDeadZoneY)
+                && !IsEmptyOrZero(LeftThumbAntiDeadZone))
+            {
+                LeftThumbAntiDeadZoneX = LeftThumbAntiDeadZone;
+                LeftThumbAntiDeadZoneY = LeftThumbAntiDeadZone;
+            }
+            if (IsEmptyOrZero(RightThumbAntiDeadZoneX) && IsEmptyOrZero(RightThumbAntiDeadZoneY)
+                && !IsEmptyOrZero(RightThumbAntiDeadZone))
+            {
+                RightThumbAntiDeadZoneX = RightThumbAntiDeadZone;
+                RightThumbAntiDeadZoneY = RightThumbAntiDeadZone;
+            }
+        }
+
+        private static bool IsEmptyOrZero(string v) =>
+            string.IsNullOrEmpty(v) || v == "0";
+
+        // ─────────────────────────────────────────────
         //  Checksum computation
         // ─────────────────────────────────────────────
 
@@ -277,6 +316,10 @@ namespace PadForge.Engine.Data
             sb.Append(RightThumbDeadZoneY); sb.Append('|');
             sb.Append(LeftThumbAntiDeadZone); sb.Append('|');
             sb.Append(RightThumbAntiDeadZone); sb.Append('|');
+            sb.Append(LeftThumbAntiDeadZoneX); sb.Append('|');
+            sb.Append(LeftThumbAntiDeadZoneY); sb.Append('|');
+            sb.Append(RightThumbAntiDeadZoneX); sb.Append('|');
+            sb.Append(RightThumbAntiDeadZoneY); sb.Append('|');
             sb.Append(LeftThumbLinear); sb.Append('|');
             sb.Append(RightThumbLinear); sb.Append('|');
 
@@ -390,6 +433,8 @@ namespace PadForge.Engine.Data
             nameof(LeftThumbDeadZoneX), nameof(LeftThumbDeadZoneY),
             nameof(RightThumbDeadZoneX), nameof(RightThumbDeadZoneY),
             nameof(LeftThumbAntiDeadZone), nameof(RightThumbAntiDeadZone),
+            nameof(LeftThumbAntiDeadZoneX), nameof(LeftThumbAntiDeadZoneY),
+            nameof(RightThumbAntiDeadZoneX), nameof(RightThumbAntiDeadZoneY),
             nameof(LeftThumbLinear), nameof(RightThumbLinear),
             // Force feedback
             nameof(ForceType), nameof(ForceOverall), nameof(ForceSwapMotor),

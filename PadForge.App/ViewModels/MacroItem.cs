@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PadForge.Common;
@@ -270,8 +274,44 @@ namespace PadForge.ViewModels
             set
             {
                 if (SetProperty(ref _buttonFlags, value))
+                {
                     OnPropertyChanged(nameof(DisplayText));
+                    if (_buttonOptions != null)
+                        foreach (var opt in _buttonOptions)
+                            opt.Refresh();
+                }
             }
+        }
+
+        // ── Button checkbox options ──
+
+        private static readonly (string Label, ushort Flag)[] _buttonDefs =
+        {
+            ("A", 0x1000), ("B", 0x2000), ("X", 0x4000), ("Y", 0x8000),
+            ("LB", 0x0100), ("RB", 0x0200), ("Back", 0x0020), ("Start", 0x0010),
+            ("LS", 0x0040), ("RS", 0x0080), ("Guide", 0x0400),
+            ("Up", 0x0001), ("Down", 0x0002), ("Left", 0x0004), ("Right", 0x0008),
+        };
+
+        private IReadOnlyList<GamepadButtonOption> _buttonOptions;
+
+        /// <summary>Checkbox-bindable options for each gamepad button.</summary>
+        [System.Xml.Serialization.XmlIgnore]
+        public IReadOnlyList<GamepadButtonOption> ButtonOptions
+        {
+            get
+            {
+                _buttonOptions ??= _buttonDefs
+                    .Select(d => new GamepadButtonOption(this, d.Label, d.Flag))
+                    .ToList().AsReadOnly();
+                return _buttonOptions;
+            }
+        }
+
+        private static string FormatButtonNames(ushort flags)
+        {
+            if (flags == 0) return "(none)";
+            return string.Join("+", _buttonDefs.Where(d => (flags & d.Flag) != 0).Select(d => d.Label));
         }
 
         private int _keyCode;
@@ -307,6 +347,99 @@ namespace PadForge.ViewModels
         /// Provides the list of VirtualKey values for ComboBox binding in the UI.
         /// </summary>
         public static Array VirtualKeyValues { get; } = Enum.GetValues(typeof(VirtualKey));
+
+        // ── Multi-key string support ──
+
+        private string _keyString = "";
+
+        /// <summary>
+        /// Multi-key combo string in x360ce format, e.g., "{Control}{Alt}{Delete}".
+        /// </summary>
+        public string KeyString
+        {
+            get => _keyString;
+            set
+            {
+                if (SetProperty(ref _keyString, value ?? ""))
+                {
+                    OnPropertyChanged(nameof(DisplayText));
+                    OnPropertyChanged(nameof(ParsedKeyCodes));
+                }
+            }
+        }
+
+        /// <summary>
+        /// Parses KeyString into an array of VK codes. Falls back to legacy KeyCode
+        /// if KeyString is empty but KeyCode is set.
+        /// </summary>
+        [System.Xml.Serialization.XmlIgnore]
+        public int[] ParsedKeyCodes
+        {
+            get
+            {
+                if (!string.IsNullOrWhiteSpace(_keyString))
+                    return ParseKeyString(_keyString);
+                return _keyCode != 0 ? new[] { _keyCode } : Array.Empty<int>();
+            }
+        }
+
+        /// <summary>Parses "{Key1}{Key2}..." format into int[] of VK codes.</summary>
+        public static int[] ParseKeyString(string keyString)
+        {
+            if (string.IsNullOrWhiteSpace(keyString))
+                return Array.Empty<int>();
+            var codes = new List<int>();
+            foreach (Match m in Regex.Matches(keyString, @"\{(\w+)\}"))
+            {
+                if (Enum.TryParse<VirtualKey>(m.Groups[1].Value, true, out var vk))
+                    codes.Add((int)vk);
+            }
+            return codes.ToArray();
+        }
+
+        /// <summary>Formats VK codes into "{Key1}{Key2}..." string.</summary>
+        public static string FormatKeyString(int[] keyCodes)
+        {
+            if (keyCodes == null || keyCodes.Length == 0) return "";
+            var sb = new StringBuilder();
+            foreach (var code in keyCodes)
+            {
+                if (Enum.IsDefined(typeof(VirtualKey), code))
+                    sb.Append($"{{{(VirtualKey)code}}}");
+                else
+                    sb.Append($"{{0x{code:X2}}}");
+            }
+            return sb.ToString();
+        }
+
+        private VirtualKey _selectedKeyToAdd;
+
+        /// <summary>
+        /// Bound to the key picker ComboBox. On selection, auto-appends {KeyName}
+        /// to KeyString and resets to None.
+        /// </summary>
+        [System.Xml.Serialization.XmlIgnore]
+        public VirtualKey SelectedKeyToAdd
+        {
+            get => _selectedKeyToAdd;
+            set
+            {
+                if (SetProperty(ref _selectedKeyToAdd, value) && value != VirtualKey.None)
+                {
+                    KeyString += $"{{{value}}}";
+                    // Reset selection after appending so the same key can be added again.
+                    SetProperty(ref _selectedKeyToAdd, VirtualKey.None);
+                    OnPropertyChanged(nameof(SelectedKeyToAdd));
+                }
+            }
+        }
+
+        private RelayCommand _clearKeyStringCommand;
+
+        /// <summary>Clears the KeyString.</summary>
+        [System.Xml.Serialization.XmlIgnore]
+        public RelayCommand ClearKeyStringCommand =>
+            _clearKeyStringCommand ??= new RelayCommand(() => KeyString = "");
 
         private int _durationMs = 50;
 
@@ -349,12 +482,13 @@ namespace PadForge.ViewModels
         {
             get
             {
+                var keyDisplay = !string.IsNullOrEmpty(_keyString) ? _keyString : ResolveKeyName(_keyCode);
                 return _type switch
                 {
-                    MacroActionType.ButtonPress => $"Press buttons ({_buttonFlags:X4}) for {_durationMs}ms",
-                    MacroActionType.ButtonRelease => $"Release buttons ({_buttonFlags:X4})",
-                    MacroActionType.KeyPress => $"Key {ResolveKeyName(_keyCode)} for {_durationMs}ms",
-                    MacroActionType.KeyRelease => $"Release key {ResolveKeyName(_keyCode)}",
+                    MacroActionType.ButtonPress => $"Press {FormatButtonNames(_buttonFlags)} for {_durationMs}ms",
+                    MacroActionType.ButtonRelease => $"Release {FormatButtonNames(_buttonFlags)}",
+                    MacroActionType.KeyPress => $"Keys {keyDisplay} for {_durationMs}ms",
+                    MacroActionType.KeyRelease => $"Release keys {keyDisplay}",
                     MacroActionType.Delay => $"Wait {_durationMs}ms",
                     MacroActionType.AxisSet => $"Set {_axisTarget} = {_axisValue}",
                     _ => "Unknown action"
@@ -432,5 +566,40 @@ namespace PadForge.ViewModels
         RightStickY,
         LeftTrigger,
         RightTrigger
+    }
+
+    /// <summary>
+    /// Represents a single gamepad button as a toggleable checkbox option.
+    /// Reads/writes individual bits from the parent MacroAction's ButtonFlags.
+    /// </summary>
+    public class GamepadButtonOption : ObservableObject
+    {
+        private readonly MacroAction _parent;
+
+        public string Label { get; }
+        public ushort Flag { get; }
+
+        public bool IsChecked
+        {
+            get => (_parent.ButtonFlags & Flag) != 0;
+            set
+            {
+                if (value)
+                    _parent.ButtonFlags |= Flag;
+                else
+                    _parent.ButtonFlags = (ushort)(_parent.ButtonFlags & ~Flag);
+                OnPropertyChanged();
+            }
+        }
+
+        public GamepadButtonOption(MacroAction parent, string label, ushort flag)
+        {
+            _parent = parent;
+            Label = label;
+            Flag = flag;
+        }
+
+        /// <summary>Re-evaluates IsChecked when ButtonFlags is changed externally.</summary>
+        public void Refresh() => OnPropertyChanged(nameof(IsChecked));
     }
 }
