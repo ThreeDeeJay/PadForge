@@ -16,6 +16,25 @@ namespace PadForge
             // Wire up global unhandled exception handlers for diagnostics.
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             DispatcherUnhandledException += App_DispatcherUnhandledException;
+
+            // Create main window manually (instead of StartupUri) so we can
+            // control whether Show() is called — required for start-minimized-to-tray.
+            var window = new MainWindow();
+            MainWindow = window;
+
+            if (window.ShouldStartMinimizedToTray)
+            {
+                // Don't call Show() at all — the tray icon handles restore.
+            }
+            else if (window.ShouldStartMinimized)
+            {
+                window.WindowState = WindowState.Minimized;
+                window.Show();
+            }
+            else
+            {
+                window.Show();
+            }
         }
 
         private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)

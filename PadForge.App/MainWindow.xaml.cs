@@ -147,7 +147,28 @@ namespace PadForge
             Loaded += OnLoaded;
             Closing += OnClosing;
             StateChanged += OnStateChanged;
+
+            // ── Early initialization (before window is shown) ──
+            // Settings must be loaded before Show() so App.OnStartup can
+            // decide whether to show the window at all (start-minimized-to-tray).
+            _settingsService.Initialize();
+            SetupNotifyIcon();
+
+            // Expose start-minimized state for App.OnStartup.
+            ShouldStartMinimized = _viewModel.Settings.StartMinimized;
+            ShouldStartMinimizedToTray = _viewModel.Settings.StartMinimized
+                && _viewModel.Settings.MinimizeToTray;
+
+            // If starting minimized to tray, make the tray icon visible now.
+            if (ShouldStartMinimizedToTray)
+                _notifyIcon.Visible = true;
         }
+
+        /// <summary>Whether the app should start minimized (to taskbar).</summary>
+        public bool ShouldStartMinimized { get; private set; }
+
+        /// <summary>Whether the app should start hidden to the system tray.</summary>
+        public bool ShouldStartMinimizedToTray { get; private set; }
 
         // ─────────────────────────────────────────────
         //  Lifecycle
@@ -155,8 +176,8 @@ namespace PadForge
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            // Initialize settings (load from disk).
-            _settingsService.Initialize();
+            // Settings and tray icon are already initialized in the constructor
+            // (before Show) so that App.OnStartup can decide whether to show the window.
 
             // Populate diagnostic info.
             _viewModel.Settings.ApplicationVersion =
@@ -192,27 +213,10 @@ namespace PadForge
                 _viewModel.Settings.SdlVersion = "Unknown";
             }
 
-            // Set up system tray icon.
-            SetupNotifyIcon();
-
             // Auto-start engine if configured.
             if (_viewModel.Settings.AutoStartEngine)
             {
                 _inputService.Start();
-            }
-
-            // Apply start-minimized setting.
-            if (_viewModel.Settings.StartMinimized)
-            {
-                if (_viewModel.Settings.MinimizeToTray)
-                {
-                    Hide();
-                    _notifyIcon.Visible = true;
-                }
-                else
-                {
-                    WindowState = WindowState.Minimized;
-                }
             }
 
             // Select the first nav item.
