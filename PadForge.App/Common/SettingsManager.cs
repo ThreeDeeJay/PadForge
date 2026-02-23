@@ -240,39 +240,38 @@ namespace PadForge.Common.Input
                 return ps;
             }
 
-            // XInput controllers use bit-position button indices (different from SDL).
-            // ConvertToInputState maps XInput buttons by their bit position in the
-            // XINPUT_GAMEPAD.Buttons bitmask, so the indices here must match.
-            if (ud.IsXInput)
+            // SDL3 gamepads (CapType == Gamepad) get auto-mapped using the
+            // standardized SDL3 gamepad axis/button order:
+            //   Axes: LX(0), LY(1), LT(2), RX(3), RY(4), RT(5)
+            //   Buttons: A(0), B(1), X(2), Y(3), LB(4), RB(5),
+            //            Back(6), Start(7), LS(8), RS(9), Guide(10)
+            //   Hats: 1 (D-pad)
+            if (ud.CapType == InputDeviceType.Gamepad)
             {
-                // Sticks and triggers are the same order (axes 0–5).
                 ps.LeftThumbAxisX = "Axis 0";
                 ps.LeftThumbAxisY = "Axis 1";
-                ps.RightThumbAxisX = "Axis 2";
-                ps.RightThumbAxisY = "Axis 3";
-                ps.LeftTrigger = "Axis 4";
+                ps.LeftTrigger = "Axis 2";
+                ps.RightThumbAxisX = "Axis 3";
+                ps.RightThumbAxisY = "Axis 4";
                 ps.RightTrigger = "Axis 5";
 
-                // D-pad from POV (ConvertToInputState converts D-pad flags to POV).
+                // D-pad from hat switch.
                 ps.DPad = "POV 0";
 
-                // XInput button bit positions:
-                //   Bit 4 = START, Bit 5 = BACK, Bit 6 = LEFT_THUMB, Bit 7 = RIGHT_THUMB,
-                //   Bit 8 = LEFT_SHOULDER, Bit 9 = RIGHT_SHOULDER, Bit 10 = GUIDE,
-                //   Bit 12 = A, Bit 13 = B, Bit 14 = X, Bit 15 = Y
-                ps.ButtonA = "Button 12";
-                ps.ButtonB = "Button 13";
-                ps.ButtonX = "Button 14";
-                ps.ButtonY = "Button 15";
-                ps.LeftShoulder = "Button 8";
-                ps.RightShoulder = "Button 9";
-                ps.ButtonBack = "Button 5";
-                ps.ButtonStart = "Button 4";
-                ps.LeftThumbButton = "Button 6";
-                ps.RightThumbButton = "Button 7";
+                // SDL3 XInput backend button indices.
+                ps.ButtonA = "Button 0";
+                ps.ButtonB = "Button 1";
+                ps.ButtonX = "Button 2";
+                ps.ButtonY = "Button 3";
+                ps.LeftShoulder = "Button 4";
+                ps.RightShoulder = "Button 5";
+                ps.ButtonBack = "Button 6";
+                ps.ButtonStart = "Button 7";
+                ps.LeftThumbButton = "Button 8";
+                ps.RightThumbButton = "Button 9";
                 ps.ButtonGuide = "Button 10";
 
-                // Default dead zones and gains
+                // Default dead zones and gains.
                 ps.LeftThumbDeadZoneX = "0";
                 ps.LeftThumbDeadZoneY = "0";
                 ps.RightThumbDeadZoneX = "0";
@@ -290,7 +289,7 @@ namespace PadForge.Common.Input
                 return ps;
             }
 
-            // Non-XInput devices (SDL / DirectInput) are not auto-mapped.
+            // Non-gamepad devices are not auto-mapped.
             // The user must manually record mappings for these devices.
 
             ps.UpdateChecksum();

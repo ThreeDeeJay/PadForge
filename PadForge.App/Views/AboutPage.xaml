@@ -30,10 +30,9 @@
                     CornerRadius="8" Padding="20" Margin="0,0,0,20">
                 <TextBlock TextWrapping="Wrap" LineHeight="22" Opacity="0.85">
                     PadForge maps any DirectInput-compatible controller to an Xbox 360 virtual
-                    controller via ViGEmBus. It replaces DirectInput with SDL3 for robust
-                    device handling, uses native XInput for Xbox controllers, and provides
-                    a modern Fluent Design interface for mapping, dead zone configuration,
-                    and force feedback management.
+                    controller via ViGEmBus. It uses SDL3 for robust device handling and
+                    provides a modern Fluent Design interface for mapping, dead zone
+                    configuration, and force feedback management.
                 </TextBlock>
             </Border>
 
@@ -53,7 +52,6 @@
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
                     <TextBlock Text=".NET 8" FontWeight="SemiBold"/>
@@ -63,23 +61,18 @@
                     <TextBlock Grid.Row="1" Grid.Column="1" Text="Cross-platform device input"
                                Opacity="0.7" Margin="0,6,0,0"/>
 
-                    <TextBlock Grid.Row="2" Text="XInput" FontWeight="SemiBold" Margin="0,6,0,0"/>
+                    <TextBlock Grid.Row="2" Text="ViGEmBus" FontWeight="SemiBold" Margin="0,6,0,0"/>
                     <TextBlock Grid.Row="2" Grid.Column="1"
-                               Text="Native Xbox controller support (xinput1_4.dll)"
-                               Opacity="0.7" Margin="0,6,0,0"/>
-
-                    <TextBlock Grid.Row="3" Text="ViGEmBus" FontWeight="SemiBold" Margin="0,6,0,0"/>
-                    <TextBlock Grid.Row="3" Grid.Column="1"
                                Text="Virtual Xbox 360 controller driver"
                                Opacity="0.7" Margin="0,6,0,0"/>
 
-                    <TextBlock Grid.Row="4" Text="ModernWpf" FontWeight="SemiBold" Margin="0,6,0,0"/>
-                    <TextBlock Grid.Row="4" Grid.Column="1"
+                    <TextBlock Grid.Row="3" Text="ModernWpf" FontWeight="SemiBold" Margin="0,6,0,0"/>
+                    <TextBlock Grid.Row="3" Grid.Column="1"
                                Text="Fluent Design theme for WPF"
                                Opacity="0.7" Margin="0,6,0,0"/>
 
-                    <TextBlock Grid.Row="5" Text="MVVM Toolkit" FontWeight="SemiBold" Margin="0,6,0,0"/>
-                    <TextBlock Grid.Row="5" Grid.Column="1"
+                    <TextBlock Grid.Row="4" Text="MVVM Toolkit" FontWeight="SemiBold" Margin="0,6,0,0"/>
+                    <TextBlock Grid.Row="4" Grid.Column="1"
                                Text="CommunityToolkit.Mvvm for data binding"
                                Opacity="0.7" Margin="0,6,0,0"/>
                 </Grid>

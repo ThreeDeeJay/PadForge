@@ -1,5 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
+using Microsoft.Win32;
 using PadForge.Engine;
 using PadForge.Engine.Data;
 using SDL3;
@@ -12,7 +15,10 @@ namespace PadForge.Common.Input
         // ─────────────────────────────────────────────
         //  Step 1: UpdateDevices
         //  Enumerates SDL joystick devices, opens newly connected devices,
-        //  marks disconnected devices as offline, and tracks ViGEm slot assignments.
+        //  marks disconnected devices as offline.
+        //
+        //  All controllers (including Xbox/XInput) are handled via SDL3.
+        //  ViGEm virtual controllers are detected and filtered out.
         // ─────────────────────────────────────────────
 
         /// <summary>
@@ -21,6 +27,15 @@ namespace PadForge.Common.Input
         /// SDL3: instance IDs are uint (0 = invalid).
         /// </summary>
         private readonly HashSet<uint> _openedSdlInstanceIds = new HashSet<uint>();
+
+        /// <summary>
+        /// SDL instance IDs identified as ViGEm virtual controllers.
+        /// These are skipped entirely on subsequent enumeration cycles to avoid
+        /// the open/close cycle that resets XInput rumble state — SDL3's close
+        /// internally calls XInputSetState(0,0) on the device's XInput slot,
+        /// which triggers ViGEm's FeedbackReceived(0,0) and kills active vibration.
+        /// </summary>
+        private readonly HashSet<uint> _filteredVigemInstanceIds = new HashSet<uint>();
 
         /// <summary>
         /// Step 1: Enumerate all connected SDL joystick devices.
@@ -44,6 +59,9 @@ namespace PadForge.Common.Input
 
             bool changed = false;
 
+            // Reset per-cycle caches for ViGEm PnP detection.
+            _vigemPnPCount = -1;
+
             // SDL3: Get array of instance IDs for all connected joysticks.
             uint[] joystickIds = SDL_GetJoysticks();
 
@@ -55,10 +73,10 @@ namespace PadForge.Common.Input
             {
                 try
                 {
-                    // ── Pre-open quick rejection ──
-                    // Check VID/PID and SDL gamepad status BEFORE opening.
-                    // This avoids the overhead of opening devices we know we'll skip.
-                    if (ShouldSkipDevicePreOpen(instanceId))
+                    // Skip devices already identified as ViGEm virtual controllers.
+                    // Opening and closing them resets their XInput rumble state,
+                    // which kills any active vibration feedback from games.
+                    if (_filteredVigemInstanceIds.Contains(instanceId))
                         continue;
 
                     // Get pre-open identification to check if already tracked.
@@ -89,11 +107,10 @@ namespace PadForge.Common.Input
                     }
 
                     // ── Post-open filtering ──
-                    // Skip devices that are native XInput controllers OR ViGEm virtual controllers.
-                    // These are handled via XInputInterop in Step 2 (real Xbox controllers)
-                    // or are our own output devices (ViGEm virtual controllers).
-                    if (IsNativeXInputDevice(wrapper) || IsViGEmVirtualDevice(wrapper))
+                    // Skip ViGEm virtual controllers (our own output devices).
+                    if (IsViGEmVirtualDevice(wrapper))
                     {
+                        _filteredVigemInstanceIds.Add(instanceId);
                         wrapper.Dispose();
                         continue;
                     }
@@ -144,10 +161,8 @@ namespace PadForge.Common.Input
                 _openedSdlInstanceIds.Remove(sdlId);
             }
 
-            // --- Phase 3: Handle native XInput devices ---
-            // Enumerate XInput controller slots 0–3.
-            // These are handled separately from SDL devices.
-            UpdateXInputDevices(ref changed);
+            // Clean up ViGEm IDs that are no longer present (virtual controller destroyed).
+            _filteredVigemInstanceIds.IntersectWith(currentInstanceIds);
 
             // --- Notify if anything changed ---
             if (changed)
@@ -157,361 +172,26 @@ namespace PadForge.Common.Input
         }
 
         // ─────────────────────────────────────────────
-        //  XInput native device enumeration
+        //  ViGEm virtual device detection
         // ─────────────────────────────────────────────
 
         /// <summary>
-        /// Well-known instance GUIDs for native XInput controllers (slots 0–3).
-        /// These are deterministic so that settings can persist across sessions.
-        /// Format: "XINPUT0-0000-0000-0000-000000000001" through "...0004"
+        /// Cached count of ViGEm Xbox 360 devices from PnP detection.
+        /// Refreshed once per enumeration cycle (not per device).
+        /// -1 = not yet computed this cycle.
         /// </summary>
-        private static readonly Guid[] XInputInstanceGuids = new Guid[]
-        {
-            new Guid("58494E50-5554-3000-0000-000000000001"), // XINPUT0
-            new Guid("58494E50-5554-3100-0000-000000000002"), // XINPUT1
-            new Guid("58494E50-5554-3200-0000-000000000003"), // XINPUT2
-            new Guid("58494E50-5554-3300-0000-000000000004"), // XINPUT3
-        };
+        private int _vigemPnPCount = -1;
+        private int _xbox360FilteredThisCycle;
 
         /// <summary>
-        /// Checks each XInput slot (0–3) for a connected native Xbox controller.
-        /// Creates/updates UserDevice records for connected controllers.
-        /// Skips slots occupied by ViGEm virtual controllers (detected via PnP
-        /// device tree walk + delta tracking) to prevent loopback.
+        /// Checks whether an SDL device is a ViGEm virtual controller
+        /// (our own output device that must not be opened as an input device).
         ///
-        /// GUIDs are assigned based on physical controller numbering (1st non-ViGEm
-        /// controller = GUID[0], 2nd = GUID[1], etc.) rather than raw XInput slot
-        /// numbers. This prevents settings from being lost or assigned to the wrong
-        /// virtual controller when ViGEm virtual controllers shift raw slot positions.
-        /// </summary>
-        private void UpdateXInputDevices(ref bool changed)
-        {
-            // ── Run ViGEm slot tracking ──
-            // Uses PnP device tree walk (cfgmgr32 + registry) to get an
-            // authoritative ViGEm count, then delta tracking to identify
-            // which specific XInput slots are ViGEm-owned.
-            UpdateViGEmSlotTracking();
-
-            // Snapshot the set of XInput slots occupied by ViGEm virtual controllers.
-            // This is authoritative: populated by PnP-based detection + delta tracking
-            // in UpdateViGEmSlotTracking(), and by spin-wait detection in
-            // CreateVirtualController/DestroyVirtualController.
-            HashSet<int> vigemSlots;
-            lock (_vigemOccupiedXInputSlots)
-            {
-                vigemSlots = new HashSet<int>(_vigemOccupiedXInputSlots);
-            }
-
-            // Sequential counter for physical (non-ViGEm) XInput controllers.
-            // Used for BOTH display names AND instance GUIDs so that the 1st
-            // physical controller always gets GUID[0] ("XInput Controller 1")
-            // regardless of which raw XInput slot it occupies.
-            int physicalNum = 0;
-
-            for (int i = 0; i < MaxPads; i++)
-            {
-                try
-                {
-                    // Skip XInput slots that are occupied by our own ViGEm virtual
-                    // controllers — reading those would create a feedback loop.
-                    if (vigemSlots.Contains(i))
-                    {
-                        // If we previously had a native XInput device at this slot,
-                        // mark it offline since it's now shadowed by our virtual controller.
-                        UserDevice shadowedUd = FindOnlineXInputDeviceByRawSlot(i);
-                        if (shadowedUd != null)
-                        {
-                            MarkDeviceOffline(shadowedUd);
-                            changed = true;
-                        }
-                        continue;
-                    }
-
-                    bool connected = XInputInterop.IsControllerConnected(i);
-
-                    if (connected)
-                    {
-                        physicalNum++;
-                        Guid instanceGuid = XInputInstanceGuids[physicalNum - 1];
-                        UserDevice ud = FindOnlineDeviceByInstanceGuid(instanceGuid);
-
-                        if (ud == null || !ud.IsOnline)
-                        {
-                            // Controller just connected.
-                            ud = FindOrCreateUserDevice(instanceGuid);
-                            string displayName = $"XInput Controller {physicalNum}";
-                            ud.LoadInstance(
-                                instanceGuid,
-                                displayName,
-                                SdlDeviceWrapper.BuildXInputProductGuid(0x045E, 0x028E), // Generic Xbox 360
-                                displayName);
-                            ud.LoadCapabilities(6, 16, 1,
-                                InputDeviceType.Gamepad, 1, 0);
-                            ud.VendorId = 0x045E;
-                            ud.ProdId = 0x028E;
-                            ud.IsXInput = true;
-                            ud.XInputUserIndex = i;
-                            ud.ForceFeedbackState = new ForceFeedbackState();
-
-                            // Build device objects for XInput.
-                            ud.DeviceObjects = BuildXInputDeviceObjects();
-                            ud.DeviceEffects = new[] { DeviceEffectItem.CreateRumbleEffect() };
-
-                            // Set IsOnline LAST — this is the atomic "go live"
-                            // signal. All identity/capability properties must be
-                            // set before this, because SyncDevicesList on the UI
-                            // thread reads these concurrently. If IsOnline is true
-                            // but IsXInput is still false, the device looks like a
-                            // ViGEm shadow device and gets incorrectly filtered out.
-                            ud.IsOnline = true;
-
-                            changed = true;
-                        }
-                        else
-                        {
-                            // Already online — update raw slot index and display name
-                            // in case ViGEm slots changed and the numbering shifted.
-                            ud.XInputUserIndex = i;
-                            string displayName = $"XInput Controller {physicalNum}";
-                            if (ud.InstanceName != displayName)
-                            {
-                                ud.InstanceName = displayName;
-                                ud.ProductName = displayName;
-                            }
-                        }
-                    }
-                    else
-                    {
-                        // Not connected at this raw slot. Check if any online XInput
-                        // device was using this raw slot and mark it offline.
-                        UserDevice ud = FindOnlineXInputDeviceByRawSlot(i);
-                        if (ud != null)
-                        {
-                            ud.ClearRuntimeState();
-                            changed = true;
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    RaiseError($"Error checking XInput slot {i}", ex);
-                }
-            }
-
-            // ── Stale XInput device cleanup ──
-            // After physicalNum renumbering, any XInput device with a GUID
-            // index >= physicalNum is stale (no longer corresponds to a real
-            // controller). Take those offline to prevent duplicate reads.
-            //
-            // Example: 2 physical controllers → GUID[0], GUID[1] online.
-            // Physical #1 disconnects → physicalNum is now 1.
-            // GUID[1] is stale (the remaining controller is now GUID[0]).
-            for (int g = physicalNum; g < MaxPads; g++)
-            {
-                Guid staleGuid = XInputInstanceGuids[g];
-                UserDevice staleUd = FindOnlineDeviceByInstanceGuid(staleGuid);
-                if (staleUd != null && staleUd.IsOnline && staleUd.IsXInput)
-                {
-                    staleUd.ClearRuntimeState();
-                    changed = true;
-                }
-            }
-        }
-
-        /// <summary>
-        /// Finds an online XInput device that is using the specified raw XInput slot.
-        /// Used for disconnect/shadow detection when we can't look up by GUID
-        /// (since GUIDs are physicalNum-based, not raw-slot-based).
-        /// </summary>
-        private UserDevice FindOnlineXInputDeviceByRawSlot(int rawSlot)
-        {
-            var devices = SettingsManager.UserDevices?.Items;
-            if (devices == null) return null;
-
-            lock (SettingsManager.UserDevices.SyncRoot)
-            {
-                for (int i = 0; i < devices.Count; i++)
-                {
-                    var d = devices[i];
-                    if (d.IsOnline && d.IsXInput && d.XInputUserIndex == rawSlot)
-                        return d;
-                }
-                return null;
-            }
-        }
-
-        /// <summary>
-        /// Builds a DeviceObjectItem array for an XInput controller
-        /// (6 axes, 1 POV, 16 buttons — standard Xbox layout).
-        /// </summary>
-        private static DeviceObjectItem[] BuildXInputDeviceObjects()
-        {
-            var items = new List<DeviceObjectItem>();
-
-            // Axes: LX, LY, RX, RY, LT, RT
-            string[] axisNames = { "Left Stick X", "Left Stick Y", "Right Stick X", "Right Stick Y", "Left Trigger", "Right Trigger" };
-            Guid[] axisGuids = { ObjectGuid.XAxis, ObjectGuid.YAxis, ObjectGuid.RxAxis, ObjectGuid.RyAxis, ObjectGuid.ZAxis, ObjectGuid.RzAxis };
-
-            for (int i = 0; i < 6; i++)
-            {
-                items.Add(new DeviceObjectItem
-                {
-                    InputIndex = i,
-                    Name = axisNames[i],
-                    ObjectTypeGuid = axisGuids[i],
-                    ObjectType = DeviceObjectTypeFlags.AbsoluteAxis,
-                    Offset = i * 4,
-                    Aspect = ObjectAspect.Position
-                });
-            }
-
-            // POV (D-pad)
-            items.Add(new DeviceObjectItem
-            {
-                InputIndex = 0,
-                Name = "D-Pad",
-                ObjectTypeGuid = ObjectGuid.PovController,
-                ObjectType = DeviceObjectTypeFlags.PointOfViewController,
-                Offset = 6 * 4,
-                Aspect = ObjectAspect.Position
-            });
-
-            // Buttons: A, B, X, Y, LB, RB, Back, Start, LS, RS, Guide, Share (+ 4 reserved)
-            string[] btnNames = {
-                "A", "B", "X", "Y", "LB", "RB", "Back", "Start",
-                "Left Stick", "Right Stick", "Guide", "Share",
-                "Reserved 12", "Reserved 13", "Reserved 14", "Reserved 15"
-            };
-
-            for (int i = 0; i < 16; i++)
-            {
-                items.Add(new DeviceObjectItem
-                {
-                    InputIndex = i,
-                    Name = btnNames[i],
-                    ObjectTypeGuid = ObjectGuid.Button,
-                    ObjectType = DeviceObjectTypeFlags.PushButton,
-                    Offset = (7 + i) * 4,
-                    Aspect = ObjectAspect.Position
-                });
-            }
-
-            return items.ToArray();
-        }
-
-        // ─────────────────────────────────────────────
-        //  XInput / ViGEm device detection for SDL devices
-        // ─────────────────────────────────────────────
-
-        /// <summary>
-        /// Known Xbox controller Product IDs (VID = 0x045E, Microsoft).
-        /// These devices are handled natively via XInputInterop and should
-        /// not also be opened through SDL to avoid double-counting.
-        /// </summary>
-        private static readonly HashSet<ushort> KnownXboxPids = new HashSet<ushort>
-        {
-            0x028E, // Xbox 360 Controller
-            0x028F, // Xbox 360 Wireless Controller
-            0x0291, // Xbox 360 Wireless Adapter
-            0x02A1, // Xbox 360 Wireless Controller (3rd party)
-            0x02D1, // Xbox One Controller (2013)
-            0x02DD, // Xbox One Controller (S)
-            0x02E3, // Xbox One Elite Controller
-            0x02EA, // Xbox One S Controller
-            0x02FD, // Xbox One S Controller (Bluetooth)
-            0x02FF, // Xbox One Controller
-            0x0B00, // Xbox One Elite Series 2
-            0x0B05, // Xbox One Elite Series 2 (Bluetooth)
-            0x0B12, // Xbox Series X|S Controller (USB)
-            0x0B13, // Xbox Series X|S Controller (Bluetooth)
-            0x0B20, // Xbox Series Controller (2023 revision)
-            0x0B21, // Xbox Elite Series 2 (USB, 2023)
-            0x0B22, // Xbox Elite Series 2 (Bluetooth, 2023)
-        };
-
-        /// <summary>
-        /// Name substrings that identify Xbox / XInput / ViGEm virtual controllers.
-        /// Case-insensitive matching. If a device name contains ANY of these,
-        /// it's treated as an XInput device that should be handled natively.
-        /// </summary>
-        private static readonly string[] XboxNamePatterns = new[]
-        {
-            "Xbox",
-            "X-Box",
-            "X360",
-            "XINPUT",
-            "ViGEm",
-            "Virtual Gamepad",
-        };
-
-        /// <summary>
-        /// Quick pre-open rejection: checks VID/PID and SDL gamepad
-        /// status BEFORE opening the device. This avoids the overhead of
-        /// opening and then immediately closing devices we know we'll skip.
-        /// SDL3: takes instance ID instead of device index.
-        /// </summary>
-        private static bool ShouldSkipDevicePreOpen(uint instanceId)
-        {
-            // Check VID/PID before opening.
-            ushort vid = SDL_GetJoystickVendorForID(instanceId);
-            ushort pid = SDL_GetJoystickProductForID(instanceId);
-
-            // Microsoft Xbox controllers — handled natively via XInput.
-            if (vid == 0x045E && KnownXboxPids.Contains(pid))
-                return true;
-
-            // Check the joystick name before opening for Xbox/ViGEm patterns.
-            string name = SDL_GetJoystickNameForID(instanceId);
-            if (!string.IsNullOrEmpty(name) && ContainsXboxPattern(name))
-                return true;
-
-            return false;
-        }
-
-        /// <summary>
-        /// Checks whether an SDL device is a native XInput controller that should
-        /// be handled via XInputInterop instead of SDL.
-        /// 
-        /// Uses multiple detection layers:
-        ///   1. VID/PID matching against known Xbox controller identifiers
-        ///   2. Device name pattern matching (Xbox, X360, XInput, etc.)
-        ///   3. Microsoft VID (0x045E) + SDL game controller recognition
-        /// </summary>
-        private static bool IsNativeXInputDevice(SdlDeviceWrapper wrapper)
-        {
-            // ── Layer 1: VID/PID match ──
-            // Microsoft Xbox controllers all use VID 0x045E.
-            if (wrapper.VendorId == 0x045E && KnownXboxPids.Contains(wrapper.ProductId))
-                return true;
-
-            // ── Layer 2: Name-based detection ──
-            // ViGEm virtual controllers and some XInput-compatible controllers
-            // may not report the expected VID/PID through SDL but will have
-            // recognizable names.
-            string name = wrapper.Name;
-            if (!string.IsNullOrEmpty(name) && ContainsXboxPattern(name))
-                return true;
-
-            // ── Layer 3: Microsoft VID + SDL game controller recognition ──
-            // If SDL recognizes a Microsoft device as a game controller,
-            // it's almost certainly an Xbox controller (real or virtual).
-            // Since we handle all XInput natively, skip it from SDL.
-            if (wrapper.VendorId == 0x045E && wrapper.IsGameController)
-                return true;
-
-            return false;
-        }
-
-        /// <summary>
-        /// Checks whether an SDL device is a ViGEm virtual controller.
-        /// This is a separate check from IsNativeXInputDevice because ViGEm
-        /// controllers may report unexpected VID/PID values through SDL
-        /// (e.g., zeroes) or different device names.
-        /// 
         /// Detection methods:
         ///   1. Device path containing ViGEm signatures
         ///   2. Zero VID/PID + SDL game controller (likely virtual)
-        ///   3. Known ViGEm product GUIDs
+        ///   3. Xbox 360 VID/PID (045E:028E) — uses PnP device tree walk
+        ///      to distinguish real Xbox 360 controllers from ViGEm emulation
         /// </summary>
         private bool IsViGEmVirtualDevice(SdlDeviceWrapper wrapper)
         {
@@ -531,43 +211,143 @@ namespace PadForge.Common.Input
             // have ViGEm virtual controllers active, it's very likely virtual.
             if (wrapper.VendorId == 0 && wrapper.ProductId == 0)
             {
-                bool vigemActive;
-                lock (_vigemOccupiedXInputSlots)
-                {
-                    vigemActive = _vigemOccupiedXInputSlots.Count > 0;
-                }
-
-                if (vigemActive && wrapper.IsGameController)
+                if (_activeVigemCount > 0 && wrapper.IsGameController)
                     return true;
             }
 
-            // ── Check if device matches ViGEm Xbox 360 exactly ──
-            // ViGEm Xbox 360 emulated controllers use VID 0x045E, PID 0x028E.
-            // This overlaps with real Xbox 360 controllers, but real ones
-            // should already be filtered by IsNativeXInputDevice.
-            // This catch-all ensures ViGEm devices are never opened via SDL.
-            if (wrapper.VendorId == 0x045E && wrapper.ProductId == 0x028E)
-                return true;
+            // ── Xbox 360 VID/PID — ViGEm emulates exactly this ──
+            // Real Xbox 360 controllers and ViGEm virtual controllers both
+            // report VID=045E PID=028E. We distinguish them by walking the
+            // Windows PnP device tree: ViGEm devices have ViGEmBus as an
+            // ancestor. The PnP count is cached per enumeration cycle.
+            if (wrapper.VendorId == 0x045E && wrapper.ProductId == 0x028E
+                && _activeVigemCount > 0)
+            {
+                // Lazy-compute the PnP count once per cycle.
+                if (_vigemPnPCount < 0)
+                {
+                    _vigemPnPCount = CountViGEmXbox360Devices();
+                    _xbox360FilteredThisCycle = 0;
+                }
+
+                // Filter up to _vigemPnPCount devices (keep the rest as real).
+                if (_xbox360FilteredThisCycle < _vigemPnPCount)
+                {
+                    _xbox360FilteredThisCycle++;
+                    return true;
+                }
+            }
 
             return false;
         }
 
         /// <summary>
-        /// Checks if a device name contains any known Xbox / ViGEm pattern.
-        /// Case-insensitive.
+        /// Counts how many VID_045E/PID_028E devices in the Windows PnP tree
+        /// are ViGEm virtual controllers (have ViGEmBus as an ancestor).
+        /// Returns 0 if detection fails or no ViGEm devices are found.
         /// </summary>
-        private static bool ContainsXboxPattern(string name)
+        private static int CountViGEmXbox360Devices()
         {
-            if (string.IsNullOrEmpty(name))
+            int count = 0;
+            try
+            {
+                using var key = Registry.LocalMachine.OpenSubKey(
+                    @"SYSTEM\CurrentControlSet\Enum\USB\VID_045E&PID_028E", false);
+                if (key == null)
+                    return 0;
+
+                foreach (var instanceName in key.GetSubKeyNames())
+                {
+                    var instanceId = @"USB\VID_045E&PID_028E\" + instanceName;
+
+                    // Skip devices that are not currently present.
+                    if (!IsDevicePresent(instanceId))
+                        continue;
+
+                    if (IsUnderViGEmBus(instanceId))
+                        count++;
+                }
+            }
+            catch
+            {
+                return 0;
+            }
+            return count;
+        }
+
+        // ─────────────────────────────────────────────
+        //  PnP helpers (cfgmgr32) for ViGEm detection
+        // ─────────────────────────────────────────────
+
+        private const int CR_SUCCESS = 0;
+        private const uint DN_DEVICE_IS_PRESENT = 0x00000002;
+
+        [DllImport("cfgmgr32.dll", CharSet = CharSet.Unicode)]
+        private static extern int CM_Locate_DevNodeW(
+            out uint pdnDevInst, string pDeviceID, int ulFlags);
+
+        [DllImport("cfgmgr32.dll")]
+        private static extern int CM_Get_Parent(
+            out uint pdnDevInst, uint dnDevInst, int ulFlags);
+
+        [DllImport("cfgmgr32.dll", CharSet = CharSet.Unicode)]
+        private static extern int CM_Get_Device_IDW(
+            uint dnDevInst, StringBuilder Buffer, int BufferLen, int ulFlags);
+
+        [DllImport("cfgmgr32.dll")]
+        private static extern int CM_Get_DevNode_Status(
+            out uint pulStatus, out uint pulProblemNumber, uint dnDevInst, int ulFlags);
+
+        private static bool IsDevicePresent(string deviceInstanceId)
+        {
+            if (CM_Locate_DevNodeW(out var devInst, deviceInstanceId, 0) != CR_SUCCESS)
+                return false;
+            if (CM_Get_DevNode_Status(out var status, out _, devInst, 0) != CR_SUCCESS)
+                return false;
+            return (status & DN_DEVICE_IS_PRESENT) != 0;
+        }
+
+        private static bool IsUnderViGEmBus(string deviceInstanceId)
+        {
+            if (CM_Locate_DevNodeW(out var devInst, deviceInstanceId, 0) != CR_SUCCESS)
                 return false;
 
-            foreach (string pattern in XboxNamePatterns)
+            // Walk up the device tree (max 64 levels).
+            for (int depth = 0; depth < 64; depth++)
             {
-                if (name.Contains(pattern, StringComparison.OrdinalIgnoreCase))
-                    return true;
+                var id = GetDeviceInstanceId(devInst);
+                if (!string.IsNullOrEmpty(id))
+                {
+                    // Check registry for ViGEmBus service name.
+                    try
+                    {
+                        using var regKey = Registry.LocalMachine.OpenSubKey(
+                            @"SYSTEM\CurrentControlSet\Enum\" + id, false);
+                        if (regKey != null)
+                        {
+                            var service = regKey.GetValue("Service") as string;
+                            if (!string.IsNullOrEmpty(service) &&
+                                service.Equals("ViGEmBus", StringComparison.OrdinalIgnoreCase))
+                                return true;
+                        }
+                    }
+                    catch { }
+                }
+
+                if (CM_Get_Parent(out var parent, devInst, 0) != CR_SUCCESS)
+                    break;
+                devInst = parent;
             }
 
             return false;
+        }
+
+        private static string GetDeviceInstanceId(uint devInst)
+        {
+            var sb = new StringBuilder(1024);
+            return CM_Get_Device_IDW(devInst, sb, sb.Capacity, 0) == CR_SUCCESS
+                ? sb.ToString()
+                : null;
         }
 
         // ─────────────────────────────────────────────
@@ -661,24 +441,6 @@ namespace PadForge.Common.Input
 
             ud.ClearRuntimeState();
         }
-    }
-
-    /// <summary>
-    /// Placeholder for XInputInterop methods referenced by Step 1.
-    /// The actual implementation is in Common/XInputInterop.cs.
-    /// </summary>
-    public static partial class XInputInterop
-    {
-        /// <summary>
-        /// Checks if an XInput controller is connected at the given user index (0–3).
-        /// </summary>
-        public static partial bool IsControllerConnected(int userIndex);
-
-        /// <summary>
-        /// Checks if a product GUID matches the PIDVID pattern used by XInput-over-DirectInput
-        /// wrapper devices, which should be handled natively via XInput instead of SDL.
-        /// </summary>
-        public static partial bool IsXInputDeviceViaProductGuid(Guid productGuid);
     }
 
     /// <summary>

@@ -19,6 +19,15 @@
     <ApplicationIcon>Resources\PadForge.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <!-- Single-file portable publish: dotnet publish -c Release -->
+  <PropertyGroup>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+
   <!-- Remove WinForms implicit usings to avoid ambiguity with WPF types. -->
   <ItemGroup>
     <Using Remove="System.Drawing" />

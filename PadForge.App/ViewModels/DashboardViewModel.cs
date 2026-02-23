@@ -149,18 +149,6 @@ namespace PadForge.ViewModels
         /// <summary>Display text for HidHide status.</summary>
         public string HidHideStatusText => IsHidHideInstalled ? "Installed" : "Not Installed";
 
-        // ─────────────────────────────────────────────
-        //  XInput library info
-        // ─────────────────────────────────────────────
-
-        private string _xinputLibraryInfo = string.Empty;
-
-        /// <summary>Information about the loaded XInput DLL.</summary>
-        public string XInputLibraryInfo
-        {
-            get => _xinputLibraryInfo;
-            set => SetProperty(ref _xinputLibraryInfo, value);
-        }
     }
 
     /// <summary>

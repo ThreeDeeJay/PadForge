@@ -15,7 +15,7 @@ namespace PadForge.Common.Input
     /// 
     /// Pipeline (runs at ~1000Hz on a background thread):
     ///   Step 1: Enumerate SDL devices, open new ones, close disconnected ones
-    ///   Step 2: Read input states from SDL (or XInput for native Xbox controllers)
+    ///   Step 2: Read input states from SDL
     ///   Step 3: Map CustomInputState → XInput Gamepad via PadSetting rules
     ///   Step 4: Combine multiple devices per virtual controller slot
     ///   Step 5: Feed ViGEmBus virtual Xbox 360 controllers
@@ -86,54 +86,6 @@ namespace PadForge.Common.Input
         /// </summary>
         public bool IsRunning => _running;
 
-        /// <summary>
-        /// Checks whether the given XInput user index (0–3) is currently occupied
-        /// by one of our ViGEm virtual controllers. Used by the UI layer to filter
-        /// virtual devices out of the device list.
-        /// </summary>
-        public bool IsViGEmOccupiedSlot(int userIndex)
-        {
-            lock (_vigemOccupiedXInputSlots)
-            {
-                return _vigemOccupiedXInputSlots.Contains(userIndex);
-            }
-        }
-
-        /// <summary>
-        /// Checks whether the given GUID is one of the well-known XInput
-        /// controller instance GUIDs (XINPUT0–XINPUT3). These are always
-        /// physical controllers and must never be filtered as virtual devices,
-        /// regardless of transient runtime state.
-        /// </summary>
-        public static bool IsKnownXInputGuid(Guid instanceGuid)
-        {
-            for (int i = 0; i < XInputInstanceGuids.Length; i++)
-            {
-                if (XInputInstanceGuids[i] == instanceGuid)
-                    return true;
-            }
-            return false;
-        }
-
-        /// <summary>
-        /// Returns the set of XInput instance GUIDs for slots currently occupied
-        /// by our ViGEm virtual controllers. These devices should be hidden from
-        /// the user-facing device list.
-        /// </summary>
-        public HashSet<Guid> GetViGEmVirtualDeviceGuids()
-        {
-            var guids = new HashSet<Guid>();
-            lock (_vigemOccupiedXInputSlots)
-            {
-                foreach (int slot in _vigemOccupiedXInputSlots)
-                {
-                    if (slot >= 0 && slot < XInputInstanceGuids.Length)
-                        guids.Add(XInputInstanceGuids[slot]);
-                }
-            }
-            return guids;
-        }
-
         // ─────────────────────────────────────────────
         //  Events
         // ─────────────────────────────────────────────
@@ -186,11 +138,10 @@ namespace PadForge.Common.Input
                 // Set hints before initialization.
                 SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
 
-                // Enable RawInput for better DirectInput device detection on Windows.
-                SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT, "1");
-
-                // Disable SDL's built-in XInput handling — we handle it natively via XInputInterop.
-                SDL_SetHint(SDL_HINT_JOYSTICK_XINPUT, "0");
+                // Allow SDL3 to enumerate XInput controllers (Xbox, etc.).
+                // Do NOT set SDL_HINT_JOYSTICK_RAWINPUT — it conflicts with
+                // XInput enumeration and prevents Xbox controllers from appearing.
+                SDL_SetHint(SDL_HINT_JOYSTICK_XINPUT, "1");
 
                 // SDL3: SDL_Init returns bool (true = success), and
                 // SDL_INIT_GAMECONTROLLER is renamed to SDL_INIT_GAMEPAD.

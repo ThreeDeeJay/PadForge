@@ -124,15 +124,6 @@ namespace PadForge.ViewModels
             set => SetProperty(ref _isHidden, value);
         }
 
-        private bool _isXInput;
-
-        /// <summary>Whether this is a native XInput controller.</summary>
-        public bool IsXInput
-        {
-            get => _isXInput;
-            set => SetProperty(ref _isXInput, value);
-        }
-
         /// <summary>Status text for display.</summary>
         public string StatusText
         {

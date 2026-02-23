@@ -620,6 +620,7 @@ namespace PadForge.ViewModels
             _copySettingsCommand?.NotifyCanExecuteChanged();
             _pasteSettingsCommand?.NotifyCanExecuteChanged();
             _copyFromCommand?.NotifyCanExecuteChanged();
+            _mapAllCommand?.NotifyCanExecuteChanged();
         }
     }
 }

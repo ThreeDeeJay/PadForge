@@ -227,19 +227,6 @@ namespace PadForge.Engine.Data
         [XmlIgnore]
         public ForceFeedbackState ForceFeedbackState { get; set; }
 
-        /// <summary>
-        /// Whether this device was identified as a native XInput controller
-        /// (handled via XInputInterop rather than SDL for state reading).
-        /// </summary>
-        [XmlIgnore]
-        public bool IsXInput { get; set; }
-
-        /// <summary>
-        /// For XInput-identified devices, the XInput user index (0–3).
-        /// </summary>
-        [XmlIgnore]
-        public int XInputUserIndex { get; set; } = -1;
-
         // ─────────────────────────────────────────────────────────────
         //  Convenience properties
         // ─────────────────────────────────────────────────────────────
@@ -397,8 +384,6 @@ namespace PadForge.Engine.Data
             DeviceObjects = null;
             DeviceEffects = null;
             ForceFeedbackState = null;
-            IsXInput = false;
-            XInputUserIndex = -1;
 
             NotifyStateChanged();
         }

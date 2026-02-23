@@ -210,6 +210,7 @@ namespace PadForge.Services
             vm.AutoStartEngine = appSettings.AutoStartEngine;
             vm.MinimizeToTray = appSettings.MinimizeToTray;
             vm.StartMinimized = appSettings.StartMinimized;
+            vm.StartAtLogin = appSettings.StartAtLogin;
             vm.EnablePollingOnFocusLoss = appSettings.EnablePollingOnFocusLoss;
             vm.PollingRateMs = appSettings.PollingRateMs;
             vm.SelectedThemeIndex = appSettings.ThemeIndex;
@@ -438,6 +439,7 @@ namespace PadForge.Services
                 AutoStartEngine = vm.AutoStartEngine,
                 MinimizeToTray = vm.MinimizeToTray,
                 StartMinimized = vm.StartMinimized,
+                StartAtLogin = vm.StartAtLogin,
                 EnablePollingOnFocusLoss = vm.EnablePollingOnFocusLoss,
                 PollingRateMs = vm.PollingRateMs,
                 ThemeIndex = vm.SelectedThemeIndex
@@ -587,6 +589,7 @@ namespace PadForge.Services
             settingsVm.AutoStartEngine = true;
             settingsVm.MinimizeToTray = false;
             settingsVm.StartMinimized = false;
+            settingsVm.StartAtLogin = false;
             settingsVm.EnablePollingOnFocusLoss = true;
             settingsVm.PollingRateMs = 1;
             settingsVm.SelectedThemeIndex = 0;
@@ -717,6 +720,9 @@ namespace PadForge.Services
 
         [XmlElement]
         public bool StartMinimized { get; set; }
+
+        [XmlElement]
+        public bool StartAtLogin { get; set; }
 
         [XmlElement]
         public bool EnablePollingOnFocusLoss { get; set; } = true;

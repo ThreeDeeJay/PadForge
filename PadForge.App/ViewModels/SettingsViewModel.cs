@@ -179,6 +179,15 @@ namespace PadForge.ViewModels
             set => SetProperty(ref _startMinimized, value);
         }
 
+        private bool _startAtLogin;
+
+        /// <summary>Whether to automatically start PadForge when the user logs in.</summary>
+        public bool StartAtLogin
+        {
+            get => _startAtLogin;
+            set => SetProperty(ref _startAtLogin, value);
+        }
+
         private bool _enablePollingOnFocusLoss = true;
 
         /// <summary>Whether to continue polling when the application loses focus.</summary>
@@ -261,19 +270,6 @@ namespace PadForge.ViewModels
 
         /// <summary>Raised when the user wants to open the settings folder.</summary>
         public event EventHandler OpenSettingsFolderRequested;
-
-        // ─────────────────────────────────────────────
-        //  XInput library info
-        // ─────────────────────────────────────────────
-
-        private string _xinputLibraryInfo = string.Empty;
-
-        /// <summary>Information about the loaded XInput DLL.</summary>
-        public string XInputLibraryInfo
-        {
-            get => _xinputLibraryInfo;
-            set => SetProperty(ref _xinputLibraryInfo, value ?? string.Empty);
-        }
 
         private string _sdlVersion = string.Empty;
 

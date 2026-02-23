@@ -7,11 +7,11 @@ namespace PadForge.Engine
     /// Manages force feedback (rumble) state for a single device.
     /// Tracks cached settings values for change detection and converts
     /// XInput vibration motor speeds to SDL rumble calls.
-    /// 
-    /// Replaces the former DirectInput Effect-based ForceFeedbackState.
-    /// SDL rumble is duration-based (100ms), so the update loop must call
-    /// <see cref="SetDeviceForces"/> frequently (at least every ~80ms) to
-    /// maintain continuous vibration.
+    ///
+    /// Uses change-detection to only send rumble when motor values differ,
+    /// with uint.MaxValue duration (~49 days) to mimic XInput's "set and
+    /// forget" behavior. This avoids the brief hardware restart gaps that
+    /// occur when SDL_RumbleJoystick is called redundantly at high frequency.
     /// </summary>
     public class ForceFeedbackState
     {
@@ -51,7 +51,7 @@ namespace PadForge.Engine
         // ─────────────────────────────────────────────
 
         /// <summary>
-        /// Stops all rumble on the device.
+        /// Stops all rumble on the device and resets cached state.
         /// </summary>
         /// <param name="device">The SDL device wrapper to stop.</param>
         public void StopDeviceForces(SdlDeviceWrapper device)
@@ -59,7 +59,10 @@ namespace PadForge.Engine
             if (device == null || !device.HasRumble)
                 return;
 
+            RumbleLogger.Log("StopDeviceForces called");
             device.StopRumble();
+            _cachedLeftMotorSpeed = 0;
+            _cachedRightMotorSpeed = 0;
             LeftMotorSpeed = 0;
             RightMotorSpeed = 0;
             IsActive = false;
@@ -72,12 +75,12 @@ namespace PadForge.Engine
         /// <summary>
         /// Calculates and applies rumble forces to the device based on PadSetting
         /// configuration and incoming XInput vibration values.
-        /// 
+        ///
         /// The method:
         /// 1. Reads gain (overall strength) and per-motor strength from PadSetting.
         /// 2. Applies gain scaling to the raw XInput motor speeds.
         /// 3. Swaps motors if configured.
-        /// 4. Sends the result via <see cref="SdlDeviceWrapper.SetRumble"/> with 100ms duration.
+        /// 4. Only sends to hardware when values change (avoids SDL rumble restart gaps).
         /// </summary>
         /// <param name="ud">The user device data model (for device reference).</param>
         /// <param name="device">The SDL device wrapper to rumble.</param>
@@ -95,14 +98,10 @@ namespace PadForge.Engine
             }
 
             // Parse gain settings from PadSetting.
-            // ForceOverall: overall gain percentage (0–100, default 100).
-            // LeftMotorStrength: left motor percentage (0–100, default 100).
-            // RightMotorStrength: right motor percentage (0–100, default 100).
             int overallGain = TryParseInt(ps.ForceOverall, 100);
             int leftGain = TryParseInt(ps.LeftMotorStrength, 100);
             int rightGain = TryParseInt(ps.RightMotorStrength, 100);
             bool swapMotors = TryParseBool(ps.ForceSwapMotor);
-            int forceType = TryParseInt(ps.ForceType, 0);
 
             // Clamp gains to 0–100.
             overallGain = Math.Clamp(overallGain, 0, 100);
@@ -127,16 +126,39 @@ namespace PadForge.Engine
                 (finalLeft, finalRight) = (finalRight, finalLeft);
             }
 
-            // Apply rumble.
-            // SDL rumble duration is 100ms; the ~1000Hz update loop refreshes before expiry.
-            bool success = device.SetRumble(finalLeft, finalRight, 100);
+            // Only send to hardware when values change. Each SDL_RumbleJoystick call
+            // restarts the hardware rumble, which can cause brief gaps. By only sending
+            // on change with a very long duration, rumble stays continuous.
+            if (finalLeft == _cachedLeftMotorSpeed && finalRight == _cachedRightMotorSpeed)
+                return;
+
+            RumbleLogger.Log($"CHANGE L:{_cachedLeftMotorSpeed}->{finalLeft} R:{_cachedRightMotorSpeed}->{finalRight} (raw L:{rawLeft} R:{rawRight} gain:{overallGain})");
+
+            bool success;
+            if (finalLeft == 0 && finalRight == 0)
+            {
+                // Explicit stop — no need for a duration.
+                success = device.StopRumble();
+                RumbleLogger.Log($"StopRumble -> {success}");
+            }
+            else
+            {
+                // Effectively infinite duration (~49 days). Rumble persists until
+                // we explicitly send different values or stop. If the app exits,
+                // the OS/driver cleans up the controller state.
+                success = device.SetRumble(finalLeft, finalRight, uint.MaxValue);
+                RumbleLogger.Log($"SetRumble({finalLeft},{finalRight},MAX) -> {success}");
+            }
 
             if (success)
             {
-                LeftMotorSpeed = finalLeft;
-                RightMotorSpeed = finalRight;
-                IsActive = finalLeft > 0 || finalRight > 0;
+                _cachedLeftMotorSpeed = finalLeft;
+                _cachedRightMotorSpeed = finalRight;
             }
+
+            LeftMotorSpeed = finalLeft;
+            RightMotorSpeed = finalRight;
+            IsActive = finalLeft > 0 || finalRight > 0;
         }
 
         // ─────────────────────────────────────────────

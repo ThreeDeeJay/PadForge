@@ -8,20 +8,20 @@ namespace PadForge.Common.Input
         // ─────────────────────────────────────────────
         //  Step 6: RetrieveXiStates
         //  Reads back the XInput states from the system's XInput DLL.
-        //  This reflects what the game actually sees from the virtual controllers
-        //  (or from native XInput controllers). Used by the UI to display the
-        //  final output state after all processing.
+        //  This reflects what the game actually sees from the virtual
+        //  controllers (ViGEmBus). Used by the UI to display the final
+        //  output state after all processing.
+        //
+        //  P/Invoke: reuses XInputGetStateEx declared in Step5.VirtualDevices.cs
         // ─────────────────────────────────────────────
 
         /// <summary>
         /// Step 6: For each of the 4 controller slots, reads the current XInput
         /// state via the system's xinput1_4.dll. The result is stored in
         /// <see cref="RetrievedXiStates"/> for UI display.
-        /// 
+        ///
         /// This reads what the game would see if it called XInputGetState().
         /// If ViGEmBus is active, this reflects the virtual controller state.
-        /// If no virtual controller exists for a slot, this reflects the native
-        /// Xbox controller (if present) or returns a zeroed state.
         /// </summary>
         private void RetrieveXiStates()
         {
@@ -29,9 +29,19 @@ namespace PadForge.Common.Input
             {
                 try
                 {
-                    if (XInputInterop.GetStateEx(padIndex, out XInputState state))
+                    var nativeState = new XInputStateInternal();
+                    uint result = XInputGetStateEx((uint)padIndex, ref nativeState);
+
+                    if (result != XINPUT_ERROR_DEVICE_NOT_CONNECTED)
                     {
-                        RetrievedXiStates[padIndex] = state.Gamepad;
+                        // Convert the internal struct to the engine's Gamepad struct.
+                        RetrievedXiStates[padIndex].Buttons = nativeState.Gamepad.wButtons;
+                        RetrievedXiStates[padIndex].LeftTrigger = nativeState.Gamepad.bLeftTrigger;
+                        RetrievedXiStates[padIndex].RightTrigger = nativeState.Gamepad.bRightTrigger;
+                        RetrievedXiStates[padIndex].ThumbLX = nativeState.Gamepad.sThumbLX;
+                        RetrievedXiStates[padIndex].ThumbLY = nativeState.Gamepad.sThumbLY;
+                        RetrievedXiStates[padIndex].ThumbRX = nativeState.Gamepad.sThumbRX;
+                        RetrievedXiStates[padIndex].ThumbRY = nativeState.Gamepad.sThumbRY;
                     }
                     else
                     {

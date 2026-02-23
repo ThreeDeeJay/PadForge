@@ -244,19 +244,24 @@ namespace PadForge.Engine
         }
 
         // ─────────────────────────────────────────────
-        //  Rumble
+        //  Rumble (SDL only)
+        //
+        //  Uses SDL_RumbleJoystick with a very long duration so the
+        //  caller controls when rumble stops. Change-detection in
+        //  ForceFeedbackState ensures we only call when values differ,
+        //  avoiding the hardware restart gaps that occur with redundant calls.
         // ─────────────────────────────────────────────
 
         /// <summary>
-        /// Sends rumble to the device.
+        /// Sends rumble to the device via SDL_RumbleJoystick.
         /// </summary>
         /// <param name="lowFreq">Low-frequency (heavy) motor intensity (0–65535).</param>
         /// <param name="highFreq">High-frequency (light) motor intensity (0–65535).</param>
-        /// <param name="durationMs">Duration in milliseconds. Use 100 and refresh before expiry for continuous rumble.</param>
+        /// <param name="durationMs">Rumble duration in milliseconds.</param>
         /// <returns>True if rumble was applied successfully.</returns>
-        public bool SetRumble(ushort lowFreq, ushort highFreq, uint durationMs = 100)
+        public bool SetRumble(ushort lowFreq, ushort highFreq, uint durationMs = uint.MaxValue)
         {
-            if (Joystick == IntPtr.Zero || !HasRumble)
+            if (!HasRumble || Joystick == IntPtr.Zero)
                 return false;
 
             return SDL_RumbleJoystick(Joystick, lowFreq, highFreq, durationMs);

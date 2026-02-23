@@ -56,6 +56,13 @@ namespace PadForge
             _viewModel.Settings.OpenSettingsFolderRequested += OnOpenSettingsFolder;
             _viewModel.Settings.ThemeChanged += OnThemeChanged;
 
+            // Apply registry Run key when Start at Login is toggled.
+            _viewModel.Settings.PropertyChanged += (s, e) =>
+            {
+                if (e.PropertyName == nameof(SettingsViewModel.StartAtLogin))
+                    Common.StartupHelper.SetStartupEnabled(_viewModel.Settings.StartAtLogin);
+            };
+
             // Wire ViGEm install/uninstall commands.
             _viewModel.Settings.InstallViGEmRequested += async (s, e) => await RunDriverOperationAsync(
                 "Installing ViGEmBus…", DriverInstaller.InstallViGEmBus, RefreshViGEmStatus);
@@ -214,6 +221,10 @@ namespace PadForge
             // Settings must be loaded before Show() so App.OnStartup can
             // decide whether to show the window at all (start-minimized-to-tray).
             _settingsService.Initialize();
+
+            // Sync StartAtLogin with actual registry state (user may have removed it externally).
+            _viewModel.Settings.StartAtLogin = Common.StartupHelper.IsStartupEnabled();
+
             SetupNotifyIcon();
 
             // Expose start-minimized state for App.OnStartup.
@@ -224,6 +235,12 @@ namespace PadForge
             // If starting minimized to tray, make the tray icon visible now.
             if (ShouldStartMinimizedToTray)
                 _notifyIcon.Visible = true;
+
+            // Auto-start engine. Must be in the constructor (not OnLoaded) because
+            // OnLoaded only fires when the window is rendered — which never happens
+            // when starting minimized to tray.
+            if (_viewModel.Settings.AutoStartEngine)
+                _inputService.Start();
         }
 
         /// <summary>Whether the app should start minimized (to taskbar).</summary>
@@ -246,12 +263,6 @@ namespace PadForge
                 System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
             _viewModel.Settings.RuntimeVersion = Environment.Version.ToString();
 
-            // Load XInput library before querying its info.
-            PadForge.Common.Input.InputManager.LoadXInputLibrary();
-            var xinputInfo = PadForge.Common.Input.InputManager.GetXInputLibraryInfo();
-            _viewModel.Settings.XInputLibraryInfo = xinputInfo;
-            _viewModel.Dashboard.XInputLibraryInfo = xinputInfo;
-
             // Detect ViGEmBus driver.
             RefreshViGEmStatus();
 
@@ -273,12 +284,6 @@ namespace PadForge
             catch
             {
                 _viewModel.Settings.SdlVersion = "Unknown";
-            }
-
-            // Auto-start engine if configured.
-            if (_viewModel.Settings.AutoStartEngine)
-            {
-                _inputService.Start();
             }
 
             // Select the first nav item.

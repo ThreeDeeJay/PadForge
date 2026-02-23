@@ -697,14 +697,10 @@ namespace PadForge.Services
         /// Synchronizes the DevicesViewModel.Devices collection with
         /// SettingsManager.UserDevices. Called on the UI thread.
         /// 
-        /// Filtering strategy (multi-layer to ensure no virtual controllers leak):
-        ///   Layer 1: GUID-based — exclude devices whose InstanceGuid matches
-        ///            our ViGEm virtual controller XInput slots.
-        ///   Layer 2: VID/PID-based — exclude devices with Xbox 360 VID/PID
-        ///            (0x045E:0x028E) that aren't XInput-managed, since they're
-        ///            ViGEm virtual controllers seen through DirectInput.
-        ///   Layer 3: Name-based — exclude devices with "ViGEm" or "Virtual"
-        ///            in their name.
+        /// Filtering strategy:
+        ///   ViGEm virtual controllers are already filtered out by Step 1
+        ///   (IsViGEmVirtualDevice) via device path inspection. This is a
+        ///   defense-in-depth layer that catches any that leak through.
         /// </summary>
         private void SyncDevicesList()
         {
@@ -719,15 +715,10 @@ namespace PadForge.Services
                 snapshot = userDevices.ToArray();
             }
 
-            // Get the set of instance GUIDs belonging to our ViGEm virtual controllers.
-            // These should be hidden from the user-facing device list.
-            var vigemGuids = _inputManager?.GetViGEmVirtualDeviceGuids() ?? new HashSet<Guid>();
-
             // Update existing rows and add new ones (skip virtual devices).
             foreach (var ud in snapshot)
             {
-                // ── Multi-layer virtual controller filter ──
-                if (IsVirtualOrShadowDevice(ud, vigemGuids))
+                if (IsVirtualOrShadowDevice(ud))
                     continue;
 
                 var row = devVm.FindByGuid(ud.InstanceGuid);
@@ -745,31 +736,20 @@ namespace PadForge.Services
             {
                 var row = devVm.Devices[i];
 
-                // Remove if this is a virtual device.
-                // Guard: never treat well-known XInput controller GUIDs as virtual,
-                // even if a ViGEm VC happens to occupy the same XInput slot number.
-                // After a physical controller disconnect, ViGEm may reclaim the freed
-                // slot (lowest available), causing vigemGuids to contain a physical GUID.
-                bool isVirtual = vigemGuids.Contains(row.InstanceGuid)
-                    && !InputManager.IsKnownXInputGuid(row.InstanceGuid);
-
-                // Also remove if no longer in the snapshot.
                 bool found = false;
-                if (!isVirtual)
+                bool isVirtual = false;
+
+                foreach (var ud in snapshot)
                 {
-                    foreach (var ud in snapshot)
+                    if (ud.InstanceGuid == row.InstanceGuid)
                     {
-                        if (ud.InstanceGuid == row.InstanceGuid)
+                        if (IsVirtualOrShadowDevice(ud))
                         {
-                            // Also re-check virtual status with full device info.
-                            if (IsVirtualOrShadowDevice(ud, vigemGuids))
-                            {
-                                isVirtual = true;
-                                break;
-                            }
-                            found = true;
+                            isVirtual = true;
                             break;
                         }
+                        found = true;
+                        break;
                     }
                 }
 
@@ -783,48 +763,19 @@ namespace PadForge.Services
         /// <summary>
         /// Determines whether a UserDevice is a virtual controller or a shadow device
         /// that should be hidden from the user-facing device list.
-        /// 
-        /// A "shadow device" is a ViGEm virtual controller that appeared through
-        /// DirectInput enumeration with recognizable characteristics but wasn't
-        /// caught by the engine-level filter.
+        ///
+        /// With SDL3-only mode, ViGEm virtual controllers are primarily filtered
+        /// at the engine level (Step 1, IsViGEmVirtualDevice). This is a
+        /// defense-in-depth layer.
         /// </summary>
-        /// <param name="ud">The device to check.</param>
-        /// <param name="vigemGuids">Set of known ViGEm virtual controller GUIDs.</param>
-        /// <returns>True if the device should be hidden.</returns>
-        private bool IsVirtualOrShadowDevice(UserDevice ud, HashSet<Guid> vigemGuids)
+        private static bool IsVirtualOrShadowDevice(UserDevice ud)
         {
-            // ── Whitelist: known XInput controller GUIDs ──
-            // Devices with well-known XInput instance GUIDs (XINPUT0–XINPUT3) are
-            // ALWAYS physical controllers. They must never be filtered as virtual,
-            // regardless of transient runtime state. During disconnect/reconnect,
-            // ClearRuntimeState temporarily sets IsXInput=false and IsOnline=false,
-            // which would cause Layer 2 to misidentify them as ViGEm shadow devices.
-            // This definitive GUID check eliminates that race condition entirely.
-            if (InputManager.IsKnownXInputGuid(ud.InstanceGuid))
-                return false;
-
             // Offline devices are never virtual controllers — virtual controllers
             // only exist while the engine is running.
             if (!ud.IsOnline)
                 return false;
 
-            // ── Layer 1: GUID match (XInput-based ViGEm devices) ──
-            if (vigemGuids.Contains(ud.InstanceGuid))
-                return true;
-
-            // ── Layer 2: VID/PID match for ViGEm Xbox 360 controllers ──
-            // ViGEm virtual Xbox 360 controllers use VID 0x045E, PID 0x028E.
-            // If this device has that VID/PID but is NOT one of our XInput-managed
-            // native controllers (IsXInput == true), it's a shadow device.
-            //
-            // Real Xbox controllers at unoccupied XInput slots have IsXInput == true
-            // because they were created by UpdateXInputDevices, not by SDL enumeration.
-            // A ViGEm controller that leaked through SDL would have IsXInput == false
-            // with the Xbox 360 VID/PID — that's the telltale sign.
-            if (ud.VendorId == 0x045E && ud.ProdId == 0x028E && !ud.IsXInput)
-                return true;
-
-            // ── Layer 3: Name-based detection ──
+            // ── Name-based detection ──
             string name = ud.ResolvedName;
             if (!string.IsNullOrEmpty(name))
             {
@@ -833,7 +784,16 @@ namespace PadForge.Services
                     return true;
             }
 
-            // ── Layer 4: Hidden flag ──
+            // ── Device path detection ──
+            string path = ud.DevicePath;
+            if (!string.IsNullOrEmpty(path))
+            {
+                string pathLower = path.ToLowerInvariant();
+                if (pathLower.Contains("vigem") || pathLower.Contains("virtual"))
+                    return true;
+            }
+
+            // ── Hidden flag ──
             if (ud.IsHidden)
                 return true;
 
@@ -854,7 +814,6 @@ namespace PadForge.Services
             row.IsOnline = ud.IsOnline;
             row.IsEnabled = ud.IsEnabled;
             row.IsHidden = ud.IsHidden;
-            row.IsXInput = ud.IsXInput;
             row.AxisCount = ud.CapAxeCount;
             row.ButtonCount = ud.CapButtonCount;
             row.PovCount = ud.CapPovCount;

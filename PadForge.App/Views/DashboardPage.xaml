@@ -125,11 +125,6 @@
                                Text="{Binding HidHideStatusText}" Opacity="0.7"
                                Margin="0,8,0,0"/>
 
-                    <TextBlock Grid.Row="2" Text="XInput Library"
-                               FontWeight="SemiBold" Margin="0,8,0,0"/>
-                    <TextBlock Grid.Row="2" Grid.Column="1"
-                               Text="{Binding XInputLibraryInfo}" Opacity="0.7"
-                               Margin="0,8,0,0"/>
                 </Grid>
             </Border>
 
