@@ -17,6 +17,56 @@ Built with SDL3, .NET 8 WPF, and Fluent Design. Modern fork of [x360ce](https://
 - **System tray** — Minimize to tray, start minimized, start at login
 - **Portable** — Single-file self-contained executable via `dotnet publish`
 
+## Screenshots
+
+### Dashboard
+![Dashboard](screenshots/dashboard.jpg)
+At-a-glance overview showing input engine status (polling rate, device count), the state of all four virtual controller slots, and installed driver versions for ViGEmBus and HidHide.
+
+### Controller Visualization
+![Controller](screenshots/controller.jpg)
+Live Xbox Series controller diagram that highlights buttons, sticks, and triggers as you press them. Includes real-time motor activity meters and a "Map All" button for quick auto-mapping.
+
+### Button and Axis Mappings
+![Mappings](screenshots/mappings.jpg)
+Full mapping grid where each Xbox output (buttons, sticks, triggers, D-pad) can be assigned to any source input. Record a mapping by pressing a button on your device, or edit the descriptor directly. Supports inversion and half-axis options.
+
+### Left Stick Dead Zones
+![Left Stick](screenshots/left-stick.jpg)
+Per-axis dead zone and anti-dead zone sliders for the left stick, with a live circular preview that shows the current stick position and the active dead zone region.
+
+### Right Stick Dead Zones
+![Right Stick](screenshots/right-stick.jpg)
+Same dead zone and anti-dead zone configuration for the right stick, with its own independent live preview.
+
+### Trigger Dead Zones
+![Triggers](screenshots/triggers.jpg)
+Dead zone and anti-dead zone sliders for left and right triggers. Live value bars show the raw and processed trigger output side by side.
+
+### Force Feedback / Rumble
+![Force Feedback](screenshots/force-feedback.jpg)
+Rumble configuration with overall gain, per-motor strength sliders, and a swap option. Test Rumble button for quick verification, plus live motor activity bars showing current rumble intensity.
+
+### Macro Editor
+![Macros](screenshots/macros.jpg)
+Create macros triggered by button combinations. Each macro supports an action sequence of button presses, key presses, and delays. Configurable fire mode (on press, on release, repeat) with full key combo builder.
+
+### Device List
+![Devices](screenshots/devices.jpg)
+All detected devices — gamepads, joysticks, keyboards, and mice — with status, type, VID/PID, and slot assignment. Select a device to see its raw input state (axes, buttons, POV hats) and assign it to any controller slot.
+
+### About
+![About](screenshots/about.jpg)
+Application information, technology stack, and license details.
+
+### Settings
+![Settings](screenshots/settings.jpg)
+Appearance theme, input engine options (auto-start, background polling, polling interval), and window behavior (system tray, start minimized, start at login).
+
+### Settings — Drivers and Diagnostics
+![Settings — Drivers](screenshots/settings-drivers.jpg)
+One-click ViGEmBus and HidHide driver management, settings file controls (save, reload, reset, open folder), and diagnostics showing app version, .NET runtime, and SDL version.
+
 ## Requirements
 
 - Windows 10 or 11 (x64)
