@@ -4,7 +4,7 @@ namespace PadForge.Engine
 {
     /// <summary>
     /// Describes a force feedback effect supported by a device.
-    /// Under SDL2, rumble is the primary (and typically only) effect type.
+    /// Under SDL3, rumble is the primary (and typically only) effect type.
     /// This class is kept for UI display and settings compatibility, but the
     /// actual force feedback is implemented via <see cref="SdlDeviceWrapper.SetRumble"/>.
     /// 

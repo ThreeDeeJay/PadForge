@@ -3,7 +3,7 @@
 ## Overview
 
 PadForge is a modern controller mapping utility (fork of x360ce) rebuilt with:
-- **SDL2** for device input (replaces DirectInput/SharpDX)
+- **SDL3** for device input (replaces DirectInput/SharpDX)
 - **XInput P/Invoke** for native Xbox controller support
 - **ViGEmBus** for virtual Xbox 360 controller output
 - **.NET 8 WPF** with ModernWpf Fluent Design
@@ -15,7 +15,7 @@ PadForge is a modern controller mapping utility (fork of x360ce) rebuilt with:
 PadForge.sln
 ├── PadForge.Engine/          (Class library — net8.0-windows)
 │   ├── Common/
-│   │   ├── SDL2Minimal.cs         SDL2 P/Invoke declarations
+│   │   ├── SDL3Minimal.cs         SDL3 P/Invoke declarations
 │   │   ├── InputTypes.cs          Enums: MapType, ObjectGuid, InputDeviceType, etc.
 │   │   ├── SdlDeviceWrapper.cs    SDL joystick wrapper (open, read, rumble, GUID)
 │   │   ├── CustomInputState.cs    Unified input state (axes, buttons, POVs, sliders)
@@ -87,7 +87,7 @@ PadForge.sln
 
 - .NET 8 SDK (net8.0-windows)
 - Windows 10/11 (for WPF, XInput, HID APIs)
-- SDL2.dll in the output directory (copy from SDL2 releases or use NuGet)
+- SDL3.dll in the output directory (copy from SDL3 releases or use NuGet)
 - ViGEmBus driver (optional — for virtual controller output)
 
 ## NuGet Dependencies
@@ -112,8 +112,8 @@ dotnet build PadForge.sln -c Release
 
 ## Runtime Requirements
 
-1. **SDL2.dll** — Place `SDL2.dll` in the output directory next to the .exe.
-   Download from https://github.com/libsdl-org/SDL/releases (SDL2, not SDL3).
+1. **SDL3.dll** — Place `SDL3.dll` in the output directory next to the .exe.
+   Download from https://github.com/libsdl-org/SDL/releases.
    Copy the x64 DLL for 64-bit builds.
 
 2. **ViGEmBus** (optional) — Install from https://github.com/nefarius/ViGEmBus/releases.

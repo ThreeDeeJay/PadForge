@@ -1,18 +1,19 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
-using SDL2;
-using static SDL2.SDL;
+using SDL3;
+using static SDL3.SDL;
 
 namespace PadForge.Engine
 {
     /// <summary>
-    /// Wraps an SDL joystick (and optionally its GameController overlay) to provide
+    /// Wraps an SDL joystick (and optionally its Gamepad overlay) to provide
     /// unified device access: open/close, state polling, rumble, GUID construction,
     /// and device object enumeration.
-    /// 
+    ///
     /// Each physical device is represented by one <see cref="SdlDeviceWrapper"/> instance
-    /// that is opened by <see cref="Open(int)"/> and released by <see cref="Dispose"/>.
+    /// that is opened by <see cref="Open(uint)"/> and released by <see cref="Dispose"/>.
     /// </summary>
     public class SdlDeviceWrapper : IDisposable
     {
@@ -23,14 +24,11 @@ namespace PadForge.Engine
         /// <summary>Raw SDL joystick handle. Always valid when the device is open.</summary>
         public IntPtr Joystick { get; private set; } = IntPtr.Zero;
 
-        /// <summary>SDL GameController handle. May be IntPtr.Zero if the device is not recognized as a game controller.</summary>
+        /// <summary>SDL Gamepad handle. May be IntPtr.Zero if the device is not recognized as a gamepad.</summary>
         public IntPtr GameController { get; private set; } = IntPtr.Zero;
 
-        /// <summary>SDL instance ID (unique per device connection session).</summary>
-        public int SdlInstanceId { get; private set; } = -1;
-
-        /// <summary>SDL device index at the time the device was opened.</summary>
-        public int DeviceIndex { get; private set; } = -1;
+        /// <summary>SDL instance ID (unique per device connection session). 0 = invalid.</summary>
+        public uint SdlInstanceId { get; private set; }
 
         /// <summary>Number of axes reported by SDL.</summary>
         public int NumAxes { get; private set; }
@@ -74,7 +72,7 @@ namespace PadForge.Engine
         /// </summary>
         public Guid ProductGuid { get; private set; } = Guid.Empty;
 
-        /// <summary>True if the device was recognized and opened as an SDL GameController.</summary>
+        /// <summary>True if the device was recognized and opened as an SDL Gamepad.</summary>
         public bool IsGameController => GameController != IntPtr.Zero;
 
         /// <summary>True if the device handle is still valid and attached.</summary>
@@ -84,7 +82,7 @@ namespace PadForge.Engine
             {
                 if (Joystick == IntPtr.Zero)
                     return false;
-                return SDL_JoystickGetAttached(Joystick) == SDL_bool.SDL_TRUE;
+                return SDL_JoystickConnected(Joystick);
             }
         }
 
@@ -95,13 +93,13 @@ namespace PadForge.Engine
         // ─────────────────────────────────────────────
 
         /// <summary>
-        /// Opens the SDL device at the given device index.
-        /// Attempts to open as a GameController first (if SDL recognizes it);
+        /// Opens the SDL device with the given instance ID.
+        /// Attempts to open as a Gamepad first (if SDL recognizes it);
         /// falls back to raw Joystick mode. Populates all public properties.
         /// </summary>
-        /// <param name="deviceIndex">Zero-based SDL device index (0 to SDL_NumJoysticks()-1).</param>
+        /// <param name="instanceId">SDL instance ID from SDL_GetJoysticks().</param>
         /// <returns>True if the device was opened successfully.</returns>
-        public bool Open(int deviceIndex)
+        public bool Open(uint instanceId)
         {
             if (_disposed)
                 throw new ObjectDisposedException(nameof(SdlDeviceWrapper));
@@ -109,53 +107,54 @@ namespace PadForge.Engine
             // Close any previously opened device on this wrapper.
             CloseInternal();
 
-            DeviceIndex = deviceIndex;
-
-            // Try GameController first for better mapping support.
-            if (SDL_IsGameController(deviceIndex) == SDL_bool.SDL_TRUE)
+            // Try Gamepad first for better mapping support.
+            if (SDL_IsGamepad(instanceId))
             {
-                GameController = SDL_GameControllerOpen(deviceIndex);
+                GameController = SDL_OpenGamepad(instanceId);
                 if (GameController != IntPtr.Zero)
                 {
-                    Joystick = SDL_GameControllerGetJoystick(GameController);
+                    Joystick = SDL_GetGamepadJoystick(GameController);
                 }
             }
 
-            // Fall back to raw joystick if GameController failed or wasn't recognized.
+            // Fall back to raw joystick if Gamepad failed or wasn't recognized.
             if (Joystick == IntPtr.Zero)
             {
                 GameController = IntPtr.Zero;
-                Joystick = SDL_JoystickOpen(deviceIndex);
+                Joystick = SDL_OpenJoystick(instanceId);
             }
 
             if (Joystick == IntPtr.Zero)
                 return false;
 
             // Populate properties from the opened joystick handle.
-            SdlInstanceId = SDL_JoystickInstanceID(Joystick);
-            NumAxes = SDL_JoystickNumAxes(Joystick);
-            NumButtons = SDL_JoystickNumButtons(Joystick);
-            NumHats = SDL_JoystickNumHats(Joystick);
-            HasRumble = SDL_JoystickHasRumble(Joystick) == SDL_bool.SDL_TRUE;
-            Name = SDL_JoystickName(Joystick);
-            VendorId = SDL_JoystickGetVendor(Joystick);
-            ProductId = SDL_JoystickGetProduct(Joystick);
-            ProductVersion = SDL_JoystickGetProductVersion(Joystick);
-            JoystickType = SDL_JoystickGetType(Joystick);
+            SdlInstanceId = SDL_GetJoystickID(Joystick);
+            NumAxes = SDL_GetNumJoystickAxes(Joystick);
+            NumButtons = SDL_GetNumJoystickButtons(Joystick);
+            NumHats = SDL_GetNumJoystickHats(Joystick);
+            Name = SDL_GetJoystickName(Joystick);
+            VendorId = SDL_GetJoystickVendor(Joystick);
+            ProductId = SDL_GetJoystickProduct(Joystick);
+            ProductVersion = SDL_GetJoystickProductVersion(Joystick);
+            JoystickType = SDL_GetJoystickType(Joystick);
+            DevicePath = SDL_GetJoystickPath(Joystick);
 
-            // Device path — SDL_JoystickPath is SDL 2.24+; handle gracefully.
-            try
+            // SDL3 may return a raw VID/PID string (e.g., "0x16c0/0x05e1") for devices
+            // not in its internal database. Fall back to the Windows HID product string.
+            if (IsRawVidPidName(Name))
             {
-                DevicePath = SDL_JoystickPath(Joystick);
+                string hidName = TryGetHidProductString(DevicePath);
+                if (hidName != null)
+                    Name = hidName;
             }
-            catch
-            {
-                DevicePath = string.Empty;
-            }
+
+            // Check rumble support via properties system (replaces SDL_JoystickHasRumble).
+            uint props = SDL_GetJoystickProperties(Joystick);
+            HasRumble = props != 0 && SDL_GetBooleanProperty(props, SDL_PROP_JOYSTICK_CAP_RUMBLE_BOOLEAN, false);
 
             // Build stable GUIDs for settings matching.
             ProductGuid = BuildProductGuid(VendorId, ProductId);
-            InstanceGuid = BuildInstanceGuid(DevicePath, VendorId, ProductId, deviceIndex);
+            InstanceGuid = BuildInstanceGuid(DevicePath, VendorId, ProductId, instanceId);
 
             return true;
         }
@@ -167,18 +166,18 @@ namespace PadForge.Engine
         {
             if (GameController != IntPtr.Zero)
             {
-                SDL_GameControllerClose(GameController);
+                SDL_CloseGamepad(GameController);
                 GameController = IntPtr.Zero;
-                // GameControllerClose also closes the underlying joystick.
+                // CloseGamepad also closes the underlying joystick.
                 Joystick = IntPtr.Zero;
             }
             else if (Joystick != IntPtr.Zero)
             {
-                SDL_JoystickClose(Joystick);
+                SDL_CloseJoystick(Joystick);
                 Joystick = IntPtr.Zero;
             }
 
-            SdlInstanceId = -1;
+            SdlInstanceId = 0;
         }
 
         // ─────────────────────────────────────────────
@@ -187,13 +186,13 @@ namespace PadForge.Engine
 
         /// <summary>
         /// Reads the current input state of the device and returns it as a
-        /// <see cref="CustomInputState"/>. Call <see cref="SDL_JoystickUpdate"/>
+        /// <see cref="CustomInputState"/>. Call <see cref="SDL_UpdateJoysticks"/>
         /// before calling this method (typically once per frame for all devices).
-        /// 
+        ///
         /// SDL axes are signed (-32768 to 32767). This method converts them to
         /// unsigned (0 to 65535) by subtracting <see cref="short.MinValue"/>,
         /// matching the convention used by the mapping pipeline.
-        /// 
+        ///
         /// SDL hats are bitmasks. This method converts them to centidegrees
         /// (-1 for centered), matching the DirectInput POV convention.
         /// </summary>
@@ -210,7 +209,7 @@ namespace PadForge.Engine
             int axisCount = Math.Min(NumAxes, CustomInputState.MaxAxis + CustomInputState.MaxSliders);
             for (int i = 0; i < axisCount; i++)
             {
-                short raw = SDL_JoystickGetAxis(Joystick, i);
+                short raw = SDL_GetJoystickAxis(Joystick, i);
                 // Convert signed SDL range to unsigned: -32768→0, 0→32768, 32767→65535
                 int unsigned = (ushort)(raw - short.MinValue);
 
@@ -230,7 +229,7 @@ namespace PadForge.Engine
             int hatCount = Math.Min(NumHats, state.Povs.Length);
             for (int i = 0; i < hatCount; i++)
             {
-                byte hat = SDL_JoystickGetHat(Joystick, i);
+                byte hat = SDL_GetJoystickHat(Joystick, i);
                 state.Povs[i] = HatToCentidegrees(hat);
             }
 
@@ -238,7 +237,7 @@ namespace PadForge.Engine
             int btnCount = Math.Min(NumButtons, state.Buttons.Length);
             for (int i = 0; i < btnCount; i++)
             {
-                state.Buttons[i] = SDL_JoystickGetButton(Joystick, i) != 0;
+                state.Buttons[i] = SDL_GetJoystickButton(Joystick, i);
             }
 
             return state;
@@ -260,7 +259,7 @@ namespace PadForge.Engine
             if (Joystick == IntPtr.Zero || !HasRumble)
                 return false;
 
-            return SDL_JoystickRumble(Joystick, lowFreq, highFreq, durationMs) == 0;
+            return SDL_RumbleJoystick(Joystick, lowFreq, highFreq, durationMs);
         }
 
         /// <summary>
@@ -278,12 +277,12 @@ namespace PadForge.Engine
         /// <summary>
         /// Builds a synthetic product GUID from VID and PID.
         /// Used for device identification and settings matching.
-        /// 
+        ///
         /// Layout (16 bytes):
         ///   bytes[0..1] = VID (little-endian)
         ///   bytes[2..3] = PID (little-endian)
         ///   bytes[4..15] = 0x00
-        /// 
+        ///
         /// NOTE: This does NOT include the "PIDVID" signature at bytes 10-15.
         /// The PIDVID signature is only present in real DirectInput product GUIDs
         /// for XInput-over-DirectInput wrapper devices. Since we use SDL (not raw
@@ -340,9 +339,9 @@ namespace PadForge.Engine
         /// <param name="devicePath">The file system device path (may be empty).</param>
         /// <param name="vid">USB Vendor ID.</param>
         /// <param name="pid">USB Product ID.</param>
-        /// <param name="deviceIndex">SDL device index (used in fallback only).</param>
+        /// <param name="instanceId">SDL instance ID (used in fallback only).</param>
         /// <returns>A deterministic GUID for the device instance.</returns>
-        public static Guid BuildInstanceGuid(string devicePath, ushort vid, ushort pid, int deviceIndex)
+        public static Guid BuildInstanceGuid(string devicePath, ushort vid, ushort pid, uint instanceId)
         {
             string identifier;
 
@@ -353,8 +352,8 @@ namespace PadForge.Engine
             }
             else
             {
-                // Fallback: synthetic identifier from VID, PID, and index.
-                identifier = $"sdl:{vid:X4}:{pid:X4}:{deviceIndex}";
+                // Fallback: synthetic identifier from VID, PID, and instance ID.
+                identifier = $"sdl:{vid:X4}:{pid:X4}:{instanceId}";
             }
 
             using (var md5 = MD5.Create())
@@ -372,7 +371,7 @@ namespace PadForge.Engine
         /// Builds an array of <see cref="DeviceObjectItem"/> describing each axis,
         /// hat, and button on the device. This is the SDL equivalent of
         /// DirectInput's GetObjects() call.
-        /// 
+        ///
         /// Axes 0–5 are assigned the standard type GUIDs (XAxis, YAxis, ZAxis,
         /// RxAxis, RyAxis, RzAxis). Remaining axes get Slider GUIDs.
         /// Hats get PovController GUIDs. Buttons get Button GUIDs.
@@ -457,7 +456,7 @@ namespace PadForge.Engine
         {
             return JoystickType switch
             {
-                SDL_JoystickType.SDL_JOYSTICK_TYPE_GAMECONTROLLER => InputDeviceType.Gamepad,
+                SDL_JoystickType.SDL_JOYSTICK_TYPE_GAMEPAD => InputDeviceType.Gamepad,
                 SDL_JoystickType.SDL_JOYSTICK_TYPE_WHEEL => InputDeviceType.Driving,
                 SDL_JoystickType.SDL_JOYSTICK_TYPE_FLIGHT_STICK => InputDeviceType.Flight,
                 SDL_JoystickType.SDL_JOYSTICK_TYPE_ARCADE_STICK => InputDeviceType.Joystick,
@@ -499,6 +498,86 @@ namespace PadForge.Engine
                 SDL_HAT_LEFTUP => 31500,
                 _ => -1  // SDL_HAT_CENTERED or any other value
             };
+        }
+
+        // ─────────────────────────────────────────────
+        //  HID product string fallback
+        //  SDL3 doesn't always return friendly device names — some devices
+        //  get a raw "0xVVVV/0xPPPP" string. We query the Windows HID
+        //  product string to recover the friendly name.
+        // ─────────────────────────────────────────────
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern IntPtr CreateFile(
+            string lpFileName, uint dwDesiredAccess, uint dwShareMode,
+            IntPtr lpSecurityAttributes, uint dwCreationDisposition,
+            uint dwFlagsAndAttributes, IntPtr hTemplateFile);
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr hObject);
+
+        [DllImport("hid.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern bool HidD_GetProductString(
+            IntPtr hidDeviceObject, byte[] buffer, uint bufferLength);
+
+        private static readonly IntPtr INVALID_HANDLE_VALUE = new IntPtr(-1);
+
+        /// <summary>
+        /// Checks if a device name looks like a raw VID/PID string (e.g., "0x16c0/0x05e1")
+        /// that SDL3 returns for devices not in its internal database.
+        /// </summary>
+        private static bool IsRawVidPidName(string name)
+        {
+            if (string.IsNullOrEmpty(name) || name.Length < 11)
+                return false;
+
+            return name.StartsWith("0x", StringComparison.OrdinalIgnoreCase)
+                && name.Contains('/');
+        }
+
+        /// <summary>
+        /// Attempts to read the HID product string from a device path.
+        /// Returns null if the path is invalid or the query fails.
+        /// </summary>
+        private static string TryGetHidProductString(string devicePath)
+        {
+            if (string.IsNullOrEmpty(devicePath))
+                return null;
+
+            try
+            {
+                IntPtr handle = CreateFile(
+                    devicePath,
+                    0,  // No access rights needed for HidD_GetProductString
+                    3,  // FILE_SHARE_READ | FILE_SHARE_WRITE
+                    IntPtr.Zero,
+                    3,  // OPEN_EXISTING
+                    0,
+                    IntPtr.Zero);
+
+                if (handle == IntPtr.Zero || handle == INVALID_HANDLE_VALUE)
+                    return null;
+
+                try
+                {
+                    byte[] buffer = new byte[512];
+                    if (HidD_GetProductString(handle, buffer, (uint)buffer.Length))
+                    {
+                        string name = Encoding.Unicode.GetString(buffer).TrimEnd('\0');
+                        if (!string.IsNullOrWhiteSpace(name))
+                            return name.Trim();
+                    }
+                    return null;
+                }
+                finally
+                {
+                    CloseHandle(handle);
+                }
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         // ─────────────────────────────────────────────

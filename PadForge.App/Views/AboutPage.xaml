@@ -20,7 +20,7 @@
                                HorizontalAlignment="Center" Margin="0,4,0,12"/>
 
                     <TextBlock HorizontalAlignment="Center" Opacity="0.5" FontSize="12">
-                        <Run Text="Modern fork of x360ce — rebuilt with SDL2, WPF, and .NET 8"/>
+                        <Run Text="Modern fork of x360ce — rebuilt with SDL3, WPF, and .NET 8"/>
                     </TextBlock>
                 </StackPanel>
             </Border>
@@ -30,7 +30,7 @@
                     CornerRadius="8" Padding="20" Margin="0,0,0,20">
                 <TextBlock TextWrapping="Wrap" LineHeight="22" Opacity="0.85">
                     PadForge maps any DirectInput-compatible controller to an Xbox 360 virtual
-                    controller via ViGEmBus. It replaces DirectInput with SDL2 for robust
+                    controller via ViGEmBus. It replaces DirectInput with SDL3 for robust
                     device handling, uses native XInput for Xbox controllers, and provides
                     a modern Fluent Design interface for mapping, dead zone configuration,
                     and force feedback management.
@@ -59,7 +59,7 @@
                     <TextBlock Text=".NET 8" FontWeight="SemiBold"/>
                     <TextBlock Grid.Column="1" Text="Runtime and WPF framework" Opacity="0.7"/>
 
-                    <TextBlock Grid.Row="1" Text="SDL2" FontWeight="SemiBold" Margin="0,6,0,0"/>
+                    <TextBlock Grid.Row="1" Text="SDL3" FontWeight="SemiBold" Margin="0,6,0,0"/>
                     <TextBlock Grid.Row="1" Grid.Column="1" Text="Cross-platform device input"
                                Opacity="0.7" Margin="0,6,0,0"/>
 
@@ -93,7 +93,7 @@
                 <TextBlock TextWrapping="Wrap" Opacity="0.75" FontSize="12" LineHeight="18">
                     This software is provided under the MIT License.
                     Portions derived from x360ce, which is licensed under the MIT License.
-                    SDL2 is licensed under the zlib License.
+                    SDL3 is licensed under the zlib License.
                     ViGEmBus is licensed under the MIT License.
                 </TextBlock>
             </Border>

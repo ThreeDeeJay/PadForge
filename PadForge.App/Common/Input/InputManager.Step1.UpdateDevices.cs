@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using PadForge.Engine;
 using PadForge.Engine.Data;
-using SDL2;
-using static SDL2.SDL;
+using SDL3;
+using static SDL3.SDL;
 
 namespace PadForge.Common.Input
 {
@@ -18,25 +18,23 @@ namespace PadForge.Common.Input
         /// <summary>
         /// Set of SDL instance IDs that we have already opened.
         /// Used to detect new vs. already-known devices.
+        /// SDL3: instance IDs are uint (0 = invalid).
         /// </summary>
-        private readonly HashSet<int> _openedSdlInstanceIds = new HashSet<int>();
-
-        /// <summary>
-        /// Maps SDL instance ID → device index at time of opening.
-        /// Used for device tracking during disconnection.
-        /// </summary>
-        private readonly Dictionary<int, int> _sdlInstanceToDeviceIndex = new Dictionary<int, int>();
+        private readonly HashSet<uint> _openedSdlInstanceIds = new HashSet<uint>();
 
         /// <summary>
         /// Step 1: Enumerate all connected SDL joystick devices.
-        /// 
+        ///
+        /// SDL3 change: uses SDL_GetJoysticks() returning an array of instance IDs
+        /// instead of SDL_NumJoysticks() + device-index-based enumeration.
+        ///
         /// For each device found by SDL:
         ///   - If not yet opened: open it, create/update a UserDevice record, mark online
         ///   - If already opened: verify it's still attached
-        /// 
+        ///
         /// For each previously opened device not found in current enumeration:
         ///   - Mark offline, close SDL handle
-        /// 
+        ///
         /// Fires <see cref="DevicesUpdated"/> if the device list changed.
         /// </summary>
         private void UpdateDevices()
@@ -45,31 +43,29 @@ namespace PadForge.Common.Input
                 return;
 
             bool changed = false;
-            int numJoysticks = SDL_NumJoysticks();
 
-            // Build a set of device indices currently visible to SDL.
-            var currentDeviceIndices = new HashSet<int>();
-            for (int i = 0; i < numJoysticks; i++)
-            {
-                currentDeviceIndices.Add(i);
-            }
+            // SDL3: Get array of instance IDs for all connected joysticks.
+            uint[] joystickIds = SDL_GetJoysticks();
+
+            // Build a set of instance IDs currently visible to SDL.
+            var currentInstanceIds = new HashSet<uint>(joystickIds);
 
             // --- Phase 1: Open newly connected devices ---
-            for (int deviceIndex = 0; deviceIndex < numJoysticks; deviceIndex++)
+            foreach (uint instanceId in joystickIds)
             {
                 try
                 {
                     // ── Pre-open quick rejection ──
-                    // Check VID/PID and SDL game controller status BEFORE opening.
+                    // Check VID/PID and SDL gamepad status BEFORE opening.
                     // This avoids the overhead of opening devices we know we'll skip.
-                    if (ShouldSkipDevicePreOpen(deviceIndex))
+                    if (ShouldSkipDevicePreOpen(instanceId))
                         continue;
 
                     // Get pre-open identification to check if already tracked.
-                    ushort vid = SDL_JoystickGetDeviceVendor(deviceIndex);
-                    ushort pid = SDL_JoystickGetDeviceProduct(deviceIndex);
-                    string path = SDL_JoystickPathForIndex(deviceIndex);
-                    Guid instanceGuid = SdlDeviceWrapper.BuildInstanceGuid(path, vid, pid, deviceIndex);
+                    ushort vid = SDL_GetJoystickVendorForID(instanceId);
+                    ushort pid = SDL_GetJoystickProductForID(instanceId);
+                    string path = SDL_GetJoystickPathForID(instanceId);
+                    Guid instanceGuid = SdlDeviceWrapper.BuildInstanceGuid(path, vid, pid, instanceId);
 
                     // Check if we already have this device online.
                     UserDevice existingUd = FindOnlineDeviceByInstanceGuid(instanceGuid);
@@ -84,9 +80,9 @@ namespace PadForge.Common.Input
                         continue;
                     }
 
-                    // Open the device.
+                    // Open the device by instance ID.
                     var wrapper = new SdlDeviceWrapper();
-                    if (!wrapper.Open(deviceIndex))
+                    if (!wrapper.Open(instanceId))
                     {
                         wrapper.Dispose();
                         continue;
@@ -111,20 +107,19 @@ namespace PadForge.Common.Input
 
                     // Track the SDL instance ID.
                     _openedSdlInstanceIds.Add(wrapper.SdlInstanceId);
-                    _sdlInstanceToDeviceIndex[wrapper.SdlInstanceId] = deviceIndex;
 
                     changed = true;
                 }
                 catch (Exception ex)
                 {
-                    RaiseError($"Error opening device at index {deviceIndex}", ex);
+                    RaiseError($"Error opening device (instance {instanceId})", ex);
                 }
             }
 
             // --- Phase 2: Detect disconnected devices ---
-            var disconnectedIds = new List<int>();
+            var disconnectedIds = new List<uint>();
 
-            foreach (int sdlId in _openedSdlInstanceIds)
+            foreach (uint sdlId in _openedSdlInstanceIds)
             {
                 // Find the UserDevice with this SDL instance ID.
                 UserDevice ud = FindOnlineDeviceBySdlInstanceId(sdlId);
@@ -144,10 +139,9 @@ namespace PadForge.Common.Input
             }
 
             // Clean up tracking for disconnected devices.
-            foreach (int sdlId in disconnectedIds)
+            foreach (uint sdlId in disconnectedIds)
             {
                 _openedSdlInstanceIds.Remove(sdlId);
-                _sdlInstanceToDeviceIndex.Remove(sdlId);
             }
 
             // --- Phase 3: Handle native XInput devices ---
@@ -451,22 +445,23 @@ namespace PadForge.Common.Input
         };
 
         /// <summary>
-        /// Quick pre-open rejection: checks VID/PID and SDL game controller
+        /// Quick pre-open rejection: checks VID/PID and SDL gamepad
         /// status BEFORE opening the device. This avoids the overhead of
         /// opening and then immediately closing devices we know we'll skip.
+        /// SDL3: takes instance ID instead of device index.
         /// </summary>
-        private static bool ShouldSkipDevicePreOpen(int deviceIndex)
+        private static bool ShouldSkipDevicePreOpen(uint instanceId)
         {
             // Check VID/PID before opening.
-            ushort vid = SDL_JoystickGetDeviceVendor(deviceIndex);
-            ushort pid = SDL_JoystickGetDeviceProduct(deviceIndex);
+            ushort vid = SDL_GetJoystickVendorForID(instanceId);
+            ushort pid = SDL_GetJoystickProductForID(instanceId);
 
             // Microsoft Xbox controllers — handled natively via XInput.
             if (vid == 0x045E && KnownXboxPids.Contains(pid))
                 return true;
 
             // Check the joystick name before opening for Xbox/ViGEm patterns.
-            string name = SDL_JoystickNameForIndex(deviceIndex);
+            string name = SDL_GetJoystickNameForID(instanceId);
             if (!string.IsNullOrEmpty(name) && ContainsXboxPattern(name))
                 return true;
 
@@ -603,7 +598,7 @@ namespace PadForge.Common.Input
         /// Finds an online UserDevice by its SDL instance ID.
         /// Uses a manual loop to avoid LINQ closure allocations.
         /// </summary>
-        private UserDevice FindOnlineDeviceBySdlInstanceId(int sdlInstanceId)
+        private UserDevice FindOnlineDeviceBySdlInstanceId(uint sdlInstanceId)
         {
             var devices = SettingsManager.UserDevices?.Items;
             if (devices == null) return null;

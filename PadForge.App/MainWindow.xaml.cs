@@ -258,16 +258,16 @@ namespace PadForge
             // Detect HidHide driver.
             RefreshHidHideStatus();
 
-            // Check SDL2.dll availability.
+            // Check SDL3.dll availability.
             try
             {
-                var sdlVersion = SDL2.SDL.SDL_Linked_Version();
+                var sdlVersion = SDL3.SDL.SDL_Linked_Version();
                 _viewModel.Settings.SdlVersion = $"SDL {sdlVersion.major}.{sdlVersion.minor}.{sdlVersion.patch}";
             }
             catch (DllNotFoundException)
             {
-                _viewModel.Settings.SdlVersion = "SDL2.dll NOT FOUND";
-                _viewModel.StatusText = "SDL2.dll not found! Place SDL2.dll next to PadForge.exe. " +
+                _viewModel.Settings.SdlVersion = "SDL3.dll NOT FOUND";
+                _viewModel.StatusText = "SDL3.dll not found! Place SDL3.dll next to PadForge.exe. " +
                     "Download from https://github.com/libsdl-org/SDL/releases";
             }
             catch

@@ -277,7 +277,7 @@ namespace PadForge.ViewModels
 
         private string _sdlVersion = string.Empty;
 
-        /// <summary>SDL2 library version string.</summary>
+        /// <summary>SDL3 library version string.</summary>
         public string SdlVersion
         {
             get => _sdlVersion;

@@ -5,8 +5,8 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using PadForge.Engine;
 using PadForge.Engine.Data;
-using SDL2;
-using static SDL2.SDL;
+using SDL3;
+using static SDL3.SDL;
 
 namespace PadForge.Common.Input
 {
@@ -172,7 +172,7 @@ namespace PadForge.Common.Input
         // ─────────────────────────────────────────────
 
         /// <summary>
-        /// Initializes the SDL2 library for joystick and game controller support.
+        /// Initializes the SDL3 library for joystick and gamepad support.
         /// Must be called before starting the polling loop.
         /// </summary>
         /// <returns>True if SDL initialized successfully.</returns>
@@ -190,10 +190,11 @@ namespace PadForge.Common.Input
                 SDL_SetHint(SDL_HINT_JOYSTICK_RAWINPUT, "1");
 
                 // Disable SDL's built-in XInput handling — we handle it natively via XInputInterop.
-                SDL_SetHint(SDL_HINT_XINPUT_ENABLED, "0");
+                SDL_SetHint(SDL_HINT_JOYSTICK_XINPUT, "0");
 
-                int result = SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMECONTROLLER);
-                if (result != 0)
+                // SDL3: SDL_Init returns bool (true = success), and
+                // SDL_INIT_GAMECONTROLLER is renamed to SDL_INIT_GAMEPAD.
+                if (!SDL_Init(SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD))
                 {
                     string error = SDL_GetError();
                     RaiseError($"SDL_Init failed: {error}", null);
@@ -205,19 +206,19 @@ namespace PadForge.Common.Input
             }
             catch (DllNotFoundException ex)
             {
-                RaiseError("SDL2.dll not found. Place SDL2.dll next to the exe. " +
+                RaiseError("SDL3.dll not found. Place SDL3.dll next to the exe. " +
                            "Download from https://github.com/libsdl-org/SDL/releases", ex);
                 return false;
             }
             catch (Exception ex)
             {
-                RaiseError("Failed to initialize SDL2.", ex);
+                RaiseError("Failed to initialize SDL3.", ex);
                 return false;
             }
         }
 
         /// <summary>
-        /// Shuts down the SDL2 library. Called during disposal.
+        /// Shuts down the SDL3 library. Called during disposal.
         /// </summary>
         private void ShutdownSdl()
         {
@@ -325,7 +326,7 @@ namespace PadForge.Common.Input
 
                     try
                     {
-                        SDL_JoystickUpdate();
+                        SDL_UpdateJoysticks();
 
                         if (firstCycle || _enumerationTimer.ElapsedMilliseconds >= EnumerationIntervalMs)
                         {
