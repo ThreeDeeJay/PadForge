@@ -100,6 +100,22 @@ namespace PadForge.Common.Input
         }
 
         /// <summary>
+        /// Checks whether the given GUID is one of the well-known XInput
+        /// controller instance GUIDs (XINPUT0–XINPUT3). These are always
+        /// physical controllers and must never be filtered as virtual devices,
+        /// regardless of transient runtime state.
+        /// </summary>
+        public static bool IsKnownXInputGuid(Guid instanceGuid)
+        {
+            for (int i = 0; i < XInputInstanceGuids.Length; i++)
+            {
+                if (XInputInstanceGuids[i] == instanceGuid)
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>
         /// Returns the set of XInput instance GUIDs for slots currently occupied
         /// by our ViGEm virtual controllers. These devices should be hidden from
         /// the user-facing device list.

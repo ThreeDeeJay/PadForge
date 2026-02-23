@@ -76,7 +76,10 @@ namespace PadForge
 
             // Wire devices page refresh.
             _viewModel.Devices.RefreshRequested += (s, e) =>
+            {
+                _inputService.RefreshDeviceList();
                 _viewModel.StatusText = "Device list refreshed.";
+            };
 
             // Wire test rumble for each pad.
             foreach (var pad in _viewModel.Pads)

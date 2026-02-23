@@ -741,7 +741,12 @@ namespace PadForge.Services
                 var row = devVm.Devices[i];
 
                 // Remove if this is a virtual device.
-                bool isVirtual = vigemGuids.Contains(row.InstanceGuid);
+                // Guard: never treat well-known XInput controller GUIDs as virtual,
+                // even if a ViGEm VC happens to occupy the same XInput slot number.
+                // After a physical controller disconnect, ViGEm may reclaim the freed
+                // slot (lowest available), causing vigemGuids to contain a physical GUID.
+                bool isVirtual = vigemGuids.Contains(row.InstanceGuid)
+                    && !InputManager.IsKnownXInputGuid(row.InstanceGuid);
 
                 // Also remove if no longer in the snapshot.
                 bool found = false;
@@ -783,11 +788,18 @@ namespace PadForge.Services
         /// <returns>True if the device should be hidden.</returns>
         private bool IsVirtualOrShadowDevice(UserDevice ud, HashSet<Guid> vigemGuids)
         {
+            // ── Whitelist: known XInput controller GUIDs ──
+            // Devices with well-known XInput instance GUIDs (XINPUT0–XINPUT3) are
+            // ALWAYS physical controllers. They must never be filtered as virtual,
+            // regardless of transient runtime state. During disconnect/reconnect,
+            // ClearRuntimeState temporarily sets IsXInput=false and IsOnline=false,
+            // which would cause Layer 2 to misidentify them as ViGEm shadow devices.
+            // This definitive GUID check eliminates that race condition entirely.
+            if (InputManager.IsKnownXInputGuid(ud.InstanceGuid))
+                return false;
+
             // Offline devices are never virtual controllers — virtual controllers
-            // only exist while the engine is running. Skipping the filter for offline
-            // devices ensures disconnected XInput controllers remain visible in the
-            // list (ClearRuntimeState resets IsXInput, which would otherwise cause
-            // Layer 2 to incorrectly match them as ViGEm shadow devices).
+            // only exist while the engine is running.
             if (!ud.IsOnline)
                 return false;
 
@@ -868,6 +880,16 @@ namespace PadForge.Services
         /// Populates the MappedDevices collection with ALL devices assigned to each slot.
         /// Called after the device list changes or after a device is assigned to a slot.
         /// </summary>
+        /// <summary>
+        /// Forces a full re-sync of the device list UI from the current
+        /// SettingsManager.UserDevices state. Called by the Refresh button.
+        /// </summary>
+        public void RefreshDeviceList()
+        {
+            SyncDevicesList();
+            UpdatePadDeviceInfo();
+        }
+
         public void UpdatePadDeviceInfo()
         {
             var settings = SettingsManager.UserSettings;

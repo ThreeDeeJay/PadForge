@@ -399,6 +399,8 @@ namespace PadForge.Engine.Data
             ForceFeedbackState = null;
             IsXInput = false;
             XInputUserIndex = -1;
+
+            NotifyStateChanged();
         }
 
         // ─────────────────────────────────────────────────────────────

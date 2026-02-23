@@ -255,7 +255,6 @@ namespace PadForge.Common.Input
                                 InputDeviceType.Gamepad, 1, 0);
                             ud.VendorId = 0x045E;
                             ud.ProdId = 0x028E;
-                            ud.IsOnline = true;
                             ud.IsXInput = true;
                             ud.XInputUserIndex = i;
                             ud.ForceFeedbackState = new ForceFeedbackState();
@@ -263,6 +262,14 @@ namespace PadForge.Common.Input
                             // Build device objects for XInput.
                             ud.DeviceObjects = BuildXInputDeviceObjects();
                             ud.DeviceEffects = new[] { DeviceEffectItem.CreateRumbleEffect() };
+
+                            // Set IsOnline LAST — this is the atomic "go live"
+                            // signal. All identity/capability properties must be
+                            // set before this, because SyncDevicesList on the UI
+                            // thread reads these concurrently. If IsOnline is true
+                            // but IsXInput is still false, the device looks like a
+                            // ViGEm shadow device and gets incorrectly filtered out.
+                            ud.IsOnline = true;
 
                             changed = true;
                         }
