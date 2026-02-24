@@ -360,7 +360,7 @@ namespace PadForge.Services
                     {
                         Id = p.Id,
                         Name = p.Name,
-                        Executables = p.ExecutableNames
+                        Executables = FormatExePaths(p.ExecutableNames)
                     });
                 }
             }
@@ -369,6 +369,21 @@ namespace PadForge.Services
             string activeId = appSettings?.ActiveProfileId;
             var active = SettingsManager.Profiles.Find(p => p.Id == activeId);
             _mainVm.Settings.ActiveProfileInfo = active?.Name ?? "Default";
+        }
+
+        /// <summary>
+        /// Formats pipe-separated full paths into a display string showing just file names.
+        /// </summary>
+        private static string FormatExePaths(string pipeSeparatedPaths)
+        {
+            if (string.IsNullOrEmpty(pipeSeparatedPaths))
+                return string.Empty;
+
+            var parts = pipeSeparatedPaths.Split('|', StringSplitOptions.RemoveEmptyEntries);
+            var names = new string[parts.Length];
+            for (int i = 0; i < parts.Length; i++)
+                names[i] = System.IO.Path.GetFileName(parts[i]);
+            return string.Join(", ", names);
         }
 
         // ─────────────────────────────────────────────
@@ -873,8 +888,8 @@ namespace PadForge.Services
         public string Name { get; set; } = "New Profile";
 
         /// <summary>
-        /// Comma-separated executable names (e.g. "game.exe,game2.exe").
-        /// Case-insensitive matching against the foreground window's process.
+        /// Pipe-separated full executable paths (e.g. "C:\Games\game.exe|D:\Other\game2.exe").
+        /// Case-insensitive matching against the foreground window's process path.
         /// </summary>
         [XmlElement]
         public string ExecutableNames { get; set; } = string.Empty;

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using PadForge.Common.Input;
@@ -19,7 +18,7 @@ namespace PadForge.Services
         [DllImport("user32.dll")]
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
-        private string _lastExeName;
+        private string _lastExePath;
         private string _lastMatchedProfileId;
 
         /// <summary>
@@ -30,7 +29,7 @@ namespace PadForge.Services
         public event Action<string> ProfileSwitchRequired;
 
         /// <summary>
-        /// Checks the foreground window process against all profile executable lists.
+        /// Checks the foreground window process against all profile executable paths.
         /// Only fires <see cref="ProfileSwitchRequired"/> when the matched profile changes.
         /// </summary>
         public void CheckForegroundWindow()
@@ -42,19 +41,19 @@ namespace PadForge.Services
             if (profiles == null || profiles.Count == 0)
                 return;
 
-            string exeName = GetForegroundExeName();
-            if (exeName == _lastExeName)
+            string exePath = GetForegroundExePath();
+            if (exePath == _lastExePath)
                 return; // Same process — skip redundant lookups.
 
-            _lastExeName = exeName;
+            _lastExePath = exePath;
 
             // Find matching profile.
             string matchedId = null;
-            if (!string.IsNullOrEmpty(exeName))
+            if (!string.IsNullOrEmpty(exePath))
             {
                 foreach (var profile in profiles)
                 {
-                    if (MatchesExecutables(exeName, profile.ExecutableNames))
+                    if (MatchesExecutables(exePath, profile.ExecutableNames))
                     {
                         matchedId = profile.Id;
                         break;
@@ -70,7 +69,7 @@ namespace PadForge.Services
             }
         }
 
-        private static string GetForegroundExeName()
+        private static string GetForegroundExePath()
         {
             try
             {
@@ -83,7 +82,7 @@ namespace PadForge.Services
                     return null;
 
                 using var proc = Process.GetProcessById((int)pid);
-                return proc.ProcessName;
+                return proc.MainModule?.FileName;
             }
             catch
             {
@@ -91,20 +90,19 @@ namespace PadForge.Services
             }
         }
 
-        private static bool MatchesExecutables(string processName, string executables)
+        /// <summary>
+        /// Matches the foreground process path against a pipe-separated list of
+        /// full executable paths (e.g. "C:\Games\game.exe|D:\Other\game2.exe").
+        /// </summary>
+        private static bool MatchesExecutables(string foregroundPath, string executables)
         {
             if (string.IsNullOrEmpty(executables))
                 return false;
 
-            var parts = executables.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-            foreach (var exe in parts)
+            var parts = executables.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var exePath in parts)
             {
-                // Strip .exe extension for comparison if present.
-                string name = exe;
-                if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-                    name = name.Substring(0, name.Length - 4);
-
-                if (string.Equals(name, processName, StringComparison.OrdinalIgnoreCase))
+                if (string.Equals(exePath, foregroundPath, StringComparison.OrdinalIgnoreCase))
                     return true;
             }
 

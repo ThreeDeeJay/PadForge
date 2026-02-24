@@ -383,19 +383,19 @@ namespace PadForge
 
         private void OnSaveAsProfile(object sender, EventArgs e)
         {
-            // Show a simple input dialog for profile name and executables.
             var dialog = new Views.ProfileDialog { Owner = this };
             if (dialog.ShowDialog() != true)
                 return;
 
             string name = dialog.ProfileName;
-            string exes = dialog.ExecutableNames;
+            // Store full paths pipe-separated.
+            string exePaths = string.Join("|", dialog.ExecutablePaths);
 
             // Snapshot current settings into a new profile.
             var snapshot = _inputService.SnapshotCurrentProfile();
             snapshot.Id = Guid.NewGuid().ToString("N");
             snapshot.Name = name.Trim();
-            snapshot.ExecutableNames = exes?.Trim() ?? string.Empty;
+            snapshot.ExecutableNames = exePaths;
 
             SettingsManager.Profiles.Add(snapshot);
 
@@ -403,11 +403,26 @@ namespace PadForge
             {
                 Id = snapshot.Id,
                 Name = snapshot.Name,
-                Executables = snapshot.ExecutableNames
+                Executables = FormatExePaths(exePaths)
             });
 
             _settingsService.MarkDirty();
             _viewModel.StatusText = $"Profile \"{name}\" created.";
+        }
+
+        /// <summary>
+        /// Formats pipe-separated full paths into a display string showing just file names.
+        /// </summary>
+        private static string FormatExePaths(string pipeSeparatedPaths)
+        {
+            if (string.IsNullOrEmpty(pipeSeparatedPaths))
+                return string.Empty;
+
+            var parts = pipeSeparatedPaths.Split('|', StringSplitOptions.RemoveEmptyEntries);
+            var names = new string[parts.Length];
+            for (int i = 0; i < parts.Length; i++)
+                names[i] = System.IO.Path.GetFileName(parts[i]);
+            return string.Join(", ", names);
         }
 
         private void OnDeleteProfile(object sender, EventArgs e)

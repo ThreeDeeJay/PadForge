@@ -325,7 +325,11 @@ namespace PadForge.ViewModels
         public ProfileListItem SelectedProfile
         {
             get => _selectedProfile;
-            set => SetProperty(ref _selectedProfile, value);
+            set
+            {
+                if (SetProperty(ref _selectedProfile, value))
+                    _deleteProfileCommand?.NotifyCanExecuteChanged();
+            }
         }
 
         private string _activeProfileInfo = "Default";

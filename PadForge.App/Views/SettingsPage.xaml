@@ -62,26 +62,20 @@
                                    VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <ItemsControl ItemsSource="{Binding ProfileItems}" Margin="0,0,0,8">
-                        <ItemsControl.ItemTemplate>
+                    <ListBox ItemsSource="{Binding ProfileItems}"
+                             SelectedItem="{Binding SelectedProfile}"
+                             MinHeight="60" MaxHeight="200"
+                             Margin="0,0,0,8">
+                        <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <Border BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                        BorderThickness="0,0,0,1" Padding="0,4">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel>
-                                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
-                                            <TextBlock Text="{Binding Executables}" FontSize="12"
-                                                       Opacity="0.6"/>
-                                        </StackPanel>
-                                    </Grid>
-                                </Border>
+                                <StackPanel Margin="4,2">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding Executables}" FontSize="12"
+                                               Opacity="0.6" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
                             </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
 
                     <StackPanel Orientation="Horizontal">
                         <Button Content="Save Current as Profile"
