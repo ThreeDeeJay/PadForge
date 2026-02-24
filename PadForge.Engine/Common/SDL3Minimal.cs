@@ -21,6 +21,7 @@ namespace SDL3
 
         public const uint SDL_INIT_VIDEO = 0x00000020;     // Required for keyboard/mouse
         public const uint SDL_INIT_JOYSTICK = 0x00000200;
+        public const uint SDL_INIT_HAPTIC = 0x00001000;
         public const uint SDL_INIT_GAMEPAD = 0x00002000; // was SDL_INIT_GAMECONTROLLER
 
         // ─────────────────────────────────────────────
@@ -458,6 +459,158 @@ namespace SDL3
         public static bool SDL_RumbleJoystick(IntPtr joystick,
             ushort low_frequency_rumble, ushort high_frequency_rumble, uint duration_ms) =>
             _SDL_RumbleJoystick(joystick, low_frequency_rumble, high_frequency_rumble, duration_ms);
+
+        // ─────────────────────────────────────────────
+        //  Haptic (force feedback) — constants
+        // ─────────────────────────────────────────────
+
+        public const uint SDL_HAPTIC_CONSTANT     = 1u << 0;
+        public const uint SDL_HAPTIC_SINE         = 1u << 1;
+        public const uint SDL_HAPTIC_SQUARE       = 1u << 2;
+        public const uint SDL_HAPTIC_TRIANGLE     = 1u << 3;
+        public const uint SDL_HAPTIC_SAWTOOTHUP   = 1u << 4;
+        public const uint SDL_HAPTIC_SAWTOOTHDOWN = 1u << 5;
+        public const uint SDL_HAPTIC_RAMP         = 1u << 6;
+        public const uint SDL_HAPTIC_SPRING       = 1u << 7;
+        public const uint SDL_HAPTIC_DAMPER        = 1u << 8;
+        public const uint SDL_HAPTIC_INERTIA      = 1u << 9;
+        public const uint SDL_HAPTIC_FRICTION     = 1u << 10;
+        public const uint SDL_HAPTIC_LEFTRIGHT    = 1u << 11;
+        public const uint SDL_HAPTIC_CUSTOM       = 1u << 15;
+        public const uint SDL_HAPTIC_GAIN         = 1u << 16;
+        public const uint SDL_HAPTIC_AUTOCENTER   = 1u << 17;
+
+        public const uint SDL_HAPTIC_INFINITY = 0xFFFFFFFFu;
+
+        // Direction types (SDL_HapticDirectionType = Uint8)
+        public const byte SDL_HAPTIC_POLAR         = 0;
+        public const byte SDL_HAPTIC_CARTESIAN     = 1;
+        public const byte SDL_HAPTIC_SPHERICAL     = 2;
+        public const byte SDL_HAPTIC_STEERING_AXIS = 3;
+
+        // ─────────────────────────────────────────────
+        //  Haptic structs
+        // ─────────────────────────────────────────────
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SDL_HapticDirection
+        {
+            public byte type;       // SDL_HapticDirectionType (Uint8)
+            private byte _pad1;
+            private byte _pad2;
+            private byte _pad3;
+            public int dir0;        // dir[3] as individual fields (Sint32)
+            public int dir1;
+            public int dir2;
+        } // 16 bytes
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SDL_HapticLeftRight
+        {
+            public ushort type;              // SDL_HAPTIC_LEFTRIGHT
+            private ushort _pad;
+            public uint length;              // Duration in ms
+            public ushort large_magnitude;   // 0–65535
+            public ushort small_magnitude;   // 0–65535
+        } // 12 bytes
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SDL_HapticConstant
+        {
+            public ushort type;              // SDL_HAPTIC_CONSTANT
+            private ushort _pad;
+            public SDL_HapticDirection direction;
+            public uint length;              // Duration in ms
+            public ushort delay;
+            public ushort button;
+            public ushort interval;
+            public short level;              // -32768 to 32767
+            public ushort attack_length;
+            public ushort attack_level;
+            public ushort fade_length;
+            public ushort fade_level;
+        } // 40 bytes
+
+        [StructLayout(LayoutKind.Sequential)]
+        public struct SDL_HapticPeriodic
+        {
+            public ushort type;              // SDL_HAPTIC_SINE, etc.
+            private ushort _pad;
+            public SDL_HapticDirection direction;
+            public uint length;              // Duration in ms
+            public ushort delay;
+            public ushort button;
+            public ushort interval;
+            public ushort period;            // Period in ms
+            public short magnitude;          // Peak value -32767 to 32767
+            public short offset;             // Mean value
+            public ushort phase;             // Phase shift 0–35999 (hundredths of degrees)
+            public ushort attack_length;
+            public ushort attack_level;
+            public ushort fade_length;
+            public ushort fade_level;
+        } // 44 bytes
+
+        /// <summary>
+        /// SDL_HapticEffect union. Uses explicit layout to overlay all effect types.
+        /// Size = largest member (SDL_HapticCondition at 68 bytes on x64).
+        /// We use 72 bytes for safety margin across compilers/platforms.
+        /// </summary>
+        [StructLayout(LayoutKind.Explicit, Size = 72)]
+        public struct SDL_HapticEffect
+        {
+            [FieldOffset(0)] public ushort type;
+            [FieldOffset(0)] public SDL_HapticLeftRight leftright;
+            [FieldOffset(0)] public SDL_HapticConstant constant;
+            [FieldOffset(0)] public SDL_HapticPeriodic periodic;
+        }
+
+        // ─────────────────────────────────────────────
+        //  Haptic functions
+        // ─────────────────────────────────────────────
+
+        [DllImport(lib, CallingConvention = CallingConvention.Cdecl)]
+        public static extern IntPtr SDL_OpenHapticFromJoystick(IntPtr joystick);
+
+        [DllImport(lib, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SDL_CloseHaptic(IntPtr haptic);
+
+        [DllImport(lib, CallingConvention = CallingConvention.Cdecl)]
+        public static extern uint SDL_GetHapticFeatures(IntPtr haptic);
+
+        [DllImport(lib, CallingConvention = CallingConvention.Cdecl)]
+        public static extern int SDL_CreateHapticEffect(IntPtr haptic, ref SDL_HapticEffect effect);
+
+        [DllImport(lib, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SDL_UpdateHapticEffect")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static extern bool _SDL_UpdateHapticEffect(IntPtr haptic, int effect, ref SDL_HapticEffect data);
+
+        public static bool SDL_UpdateHapticEffect(IntPtr haptic, int effect, ref SDL_HapticEffect data) =>
+            _SDL_UpdateHapticEffect(haptic, effect, ref data);
+
+        [DllImport(lib, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SDL_RunHapticEffect")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static extern bool _SDL_RunHapticEffect(IntPtr haptic, int effect, uint iterations);
+
+        public static bool SDL_RunHapticEffect(IntPtr haptic, int effect, uint iterations) =>
+            _SDL_RunHapticEffect(haptic, effect, iterations);
+
+        [DllImport(lib, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SDL_StopHapticEffect")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static extern bool _SDL_StopHapticEffect(IntPtr haptic, int effect);
+
+        public static bool SDL_StopHapticEffect(IntPtr haptic, int effect) =>
+            _SDL_StopHapticEffect(haptic, effect);
+
+        [DllImport(lib, CallingConvention = CallingConvention.Cdecl)]
+        public static extern void SDL_DestroyHapticEffect(IntPtr haptic, int effect);
+
+        [DllImport(lib, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SDL_SetHapticGain")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static extern bool _SDL_SetHapticGain(IntPtr haptic, int gain);
+
+        public static bool SDL_SetHapticGain(IntPtr haptic, int gain) =>
+            _SDL_SetHapticGain(haptic, gain);
 
         // ─────────────────────────────────────────────
         //  Keyboard enumeration and state

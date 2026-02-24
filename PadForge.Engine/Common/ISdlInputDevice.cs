@@ -15,6 +15,10 @@ namespace PadForge.Engine
         int NumButtons { get; }
         int NumHats { get; }
         bool HasRumble { get; }
+        bool HasHaptic { get; }
+        HapticEffectStrategy HapticStrategy { get; }
+        IntPtr HapticHandle { get; }
+        uint HapticFeatures { get; }
         bool IsAttached { get; }
         ushort VendorId { get; }
         ushort ProductId { get; }

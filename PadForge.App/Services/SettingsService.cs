@@ -194,6 +194,9 @@ namespace PadForge.Services
                 // Load macros into pad ViewModels.
                 if (data.Macros != null)
                     LoadMacros(data.Macros);
+
+                // Load profiles.
+                LoadProfiles(data.Profiles, data.AppSettings);
             }
             catch (Exception ex)
             {
@@ -214,6 +217,9 @@ namespace PadForge.Services
             vm.EnablePollingOnFocusLoss = appSettings.EnablePollingOnFocusLoss;
             vm.PollingRateMs = appSettings.PollingRateMs;
             vm.SelectedThemeIndex = appSettings.ThemeIndex;
+            vm.EnableAutoProfileSwitching = appSettings.EnableAutoProfileSwitching;
+            SettingsManager.EnableAutoProfileSwitching = appSettings.EnableAutoProfileSwitching;
+            SettingsManager.ActiveProfileId = appSettings.ActiveProfileId;
         }
 
         /// <summary>
@@ -337,6 +343,34 @@ namespace PadForge.Services
             }
         }
 
+        /// <summary>
+        /// Loads profiles from serialized data into SettingsManager and the ViewModel.
+        /// </summary>
+        private void LoadProfiles(ProfileData[] profiles, AppSettingsData appSettings)
+        {
+            SettingsManager.Profiles.Clear();
+            _mainVm.Settings.ProfileItems.Clear();
+
+            if (profiles != null)
+            {
+                foreach (var p in profiles)
+                {
+                    SettingsManager.Profiles.Add(p);
+                    _mainVm.Settings.ProfileItems.Add(new ViewModels.ProfileListItem
+                    {
+                        Id = p.Id,
+                        Name = p.Name,
+                        Executables = p.ExecutableNames
+                    });
+                }
+            }
+
+            // Update active profile display.
+            string activeId = appSettings?.ActiveProfileId;
+            var active = SettingsManager.Profiles.Find(p => p.Id == activeId);
+            _mainVm.Settings.ActiveProfileInfo = active?.Name ?? "Default";
+        }
+
         // ─────────────────────────────────────────────
         //  Save
         // ─────────────────────────────────────────────
@@ -407,6 +441,10 @@ namespace PadForge.Services
                 // Collect macros from all pad ViewModels.
                 data.Macros = BuildMacroData();
 
+                // Collect profiles.
+                if (SettingsManager.Profiles.Count > 0)
+                    data.Profiles = SettingsManager.Profiles.ToArray();
+
                 // Serialize.
                 var serializer = new XmlSerializer(typeof(SettingsFileData));
                 string dir = Path.GetDirectoryName(filePath);
@@ -434,6 +472,8 @@ namespace PadForge.Services
         private AppSettingsData BuildAppSettings()
         {
             var vm = _mainVm.Settings;
+            // Sync the ViewModel toggle to the static state.
+            SettingsManager.EnableAutoProfileSwitching = vm.EnableAutoProfileSwitching;
             return new AppSettingsData
             {
                 AutoStartEngine = vm.AutoStartEngine,
@@ -442,7 +482,9 @@ namespace PadForge.Services
                 StartAtLogin = vm.StartAtLogin,
                 EnablePollingOnFocusLoss = vm.EnablePollingOnFocusLoss,
                 PollingRateMs = vm.PollingRateMs,
-                ThemeIndex = vm.SelectedThemeIndex
+                ThemeIndex = vm.SelectedThemeIndex,
+                EnableAutoProfileSwitching = vm.EnableAutoProfileSwitching,
+                ActiveProfileId = SettingsManager.ActiveProfileId
             };
         }
 
@@ -593,6 +635,12 @@ namespace PadForge.Services
             settingsVm.EnablePollingOnFocusLoss = true;
             settingsVm.PollingRateMs = 1;
             settingsVm.SelectedThemeIndex = 0;
+            settingsVm.EnableAutoProfileSwitching = false;
+            SettingsManager.EnableAutoProfileSwitching = false;
+            SettingsManager.ActiveProfileId = null;
+            SettingsManager.Profiles.Clear();
+            settingsVm.ProfileItems.Clear();
+            settingsVm.ActiveProfileInfo = "Default";
 
             IsDirty = true;
             settingsVm.HasUnsavedChanges = true;
@@ -705,6 +753,10 @@ namespace PadForge.Services
         [XmlArray("Macros")]
         [XmlArrayItem("Macro")]
         public MacroData[] Macros { get; set; }
+
+        [XmlArray("Profiles")]
+        [XmlArrayItem("Profile")]
+        public ProfileData[] Profiles { get; set; }
     }
 
     /// <summary>
@@ -732,6 +784,12 @@ namespace PadForge.Services
 
         [XmlElement]
         public int ThemeIndex { get; set; }
+
+        [XmlElement]
+        public bool EnableAutoProfileSwitching { get; set; }
+
+        [XmlElement]
+        public string ActiveProfileId { get; set; }
     }
 
     /// <summary>
@@ -799,5 +857,53 @@ namespace PadForge.Services
 
         [XmlElement]
         public MacroAxisTarget AxisTarget { get; set; }
+    }
+
+    /// <summary>
+    /// A named profile that stores per-device PadSettings and macros.
+    /// When auto-switching is enabled, profiles activate when a matching
+    /// executable's window comes to the foreground.
+    /// </summary>
+    public class ProfileData
+    {
+        [XmlAttribute]
+        public string Id { get; set; } = Guid.NewGuid().ToString("N");
+
+        [XmlElement]
+        public string Name { get; set; } = "New Profile";
+
+        /// <summary>
+        /// Comma-separated executable names (e.g. "game.exe,game2.exe").
+        /// Case-insensitive matching against the foreground window's process.
+        /// </summary>
+        [XmlElement]
+        public string ExecutableNames { get; set; } = string.Empty;
+
+        [XmlArray("Entries")]
+        [XmlArrayItem("Entry")]
+        public ProfileEntry[] Entries { get; set; }
+
+        [XmlArray("ProfilePadSettings")]
+        [XmlArrayItem("PadSetting")]
+        public PadSetting[] PadSettings { get; set; }
+
+        [XmlArray("ProfileMacros")]
+        [XmlArrayItem("Macro")]
+        public MacroData[] Macros { get; set; }
+    }
+
+    /// <summary>
+    /// Links a device (by instance GUID) to a slot and PadSetting within a profile.
+    /// </summary>
+    public class ProfileEntry
+    {
+        [XmlElement]
+        public Guid InstanceGuid { get; set; }
+
+        [XmlElement]
+        public int MapTo { get; set; }
+
+        [XmlElement]
+        public string PadSettingChecksum { get; set; }
     }
 }

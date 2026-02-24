@@ -114,8 +114,8 @@ namespace PadForge.Common.Input
             if (ud == null || ud.ForceFeedbackState == null)
                 return;
 
-            // Only SDL devices with rumble support.
-            if (ud.Device == null || !ud.Device.HasRumble)
+            // Only SDL devices with rumble or haptic FFB support.
+            if (ud.Device == null || (!ud.Device.HasRumble && !ud.Device.HasHaptic))
                 return;
 
             // Find which pad slot this device is mapped to.

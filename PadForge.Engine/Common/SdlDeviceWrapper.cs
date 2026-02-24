@@ -42,6 +42,21 @@ namespace PadForge.Engine
         /// <summary>Whether the device supports rumble vibration.</summary>
         public bool HasRumble { get; private set; }
 
+        /// <summary>SDL haptic device handle. Non-zero when haptic FFB is available (and rumble is not).</summary>
+        public IntPtr Haptic { get; private set; } = IntPtr.Zero;
+
+        /// <summary>Haptic handle exposed via ISdlInputDevice interface.</summary>
+        public IntPtr HapticHandle => Haptic;
+
+        /// <summary>Bitmask of supported haptic features (SDL_HAPTIC_* flags).</summary>
+        public uint HapticFeatures { get; private set; }
+
+        /// <summary>True if the device has a haptic FFB handle open.</summary>
+        public bool HasHaptic => Haptic != IntPtr.Zero;
+
+        /// <summary>Best haptic strategy for this device (chosen at open time).</summary>
+        public HapticEffectStrategy HapticStrategy { get; private set; } = HapticEffectStrategy.None;
+
         /// <summary>Human-readable device name.</summary>
         public string Name { get; private set; } = string.Empty;
 
@@ -165,6 +180,11 @@ namespace PadForge.Engine
             uint props = SDL_GetJoystickProperties(Joystick);
             HasRumble = props != 0 && SDL_GetBooleanProperty(props, SDL_PROP_JOYSTICK_CAP_RUMBLE_BOOLEAN, false);
 
+            // If the device doesn't support simple rumble, try the haptic API for
+            // full force feedback (DirectInput FFB wheels, joysticks, etc.).
+            if (!HasRumble)
+                OpenHaptic();
+
             // Build stable GUIDs for settings matching.
             ProductGuid = BuildProductGuid(VendorId, ProductId);
             InstanceGuid = BuildInstanceGuid(DevicePath, VendorId, ProductId, instanceId);
@@ -174,9 +194,19 @@ namespace PadForge.Engine
 
         /// <summary>
         /// Internal close that releases SDL handles without setting _disposed.
+        /// Haptic must be closed before the joystick it was opened from.
         /// </summary>
         private void CloseInternal()
         {
+            // Close haptic first — it depends on the joystick handle.
+            if (Haptic != IntPtr.Zero)
+            {
+                SDL_CloseHaptic(Haptic);
+                Haptic = IntPtr.Zero;
+                HapticFeatures = 0;
+                HapticStrategy = HapticEffectStrategy.None;
+            }
+
             if (GameController != IntPtr.Zero)
             {
                 SDL_CloseGamepad(GameController);
@@ -191,6 +221,51 @@ namespace PadForge.Engine
             }
 
             SdlInstanceId = 0;
+        }
+
+        /// <summary>
+        /// Attempts to open the SDL haptic subsystem from the current joystick handle.
+        /// Queries supported features and picks the best effect strategy:
+        /// LeftRight > Sine > Constant.
+        /// </summary>
+        private void OpenHaptic()
+        {
+            if (Joystick == IntPtr.Zero)
+                return;
+
+            IntPtr h = SDL_OpenHapticFromJoystick(Joystick);
+            if (h == IntPtr.Zero)
+                return;
+
+            uint features = SDL_GetHapticFeatures(h);
+            if (features == 0)
+            {
+                SDL_CloseHaptic(h);
+                return;
+            }
+
+            Haptic = h;
+            HapticFeatures = features;
+
+            // Pick the best strategy for translating dual-motor rumble into haptic effects.
+            if ((features & SDL_HAPTIC_LEFTRIGHT) != 0)
+                HapticStrategy = HapticEffectStrategy.LeftRight;
+            else if ((features & SDL_HAPTIC_SINE) != 0)
+                HapticStrategy = HapticEffectStrategy.Sine;
+            else if ((features & SDL_HAPTIC_CONSTANT) != 0)
+                HapticStrategy = HapticEffectStrategy.Constant;
+            else
+            {
+                // Device has haptic support but no usable effect types.
+                SDL_CloseHaptic(h);
+                Haptic = IntPtr.Zero;
+                HapticFeatures = 0;
+                return;
+            }
+
+            // Set gain to maximum if the device supports it.
+            if ((features & SDL_HAPTIC_GAIN) != 0)
+                SDL_SetHapticGain(h, 100);
         }
 
         // ─────────────────────────────────────────────
@@ -738,5 +813,17 @@ namespace PadForge.Engine
         {
             Dispose(false);
         }
+    }
+
+    /// <summary>
+    /// Strategy for translating ViGEm dual-motor rumble values into SDL haptic effects.
+    /// Chosen at device open time based on the device's supported feature flags.
+    /// </summary>
+    public enum HapticEffectStrategy
+    {
+        None,
+        LeftRight,
+        Sine,
+        Constant
     }
 }

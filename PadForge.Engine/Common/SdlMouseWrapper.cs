@@ -34,6 +34,10 @@ namespace PadForge.Engine
         public int NumButtons => MouseButtons;
         public int NumHats => 0;
         public bool HasRumble => false;
+        public bool HasHaptic => false;
+        public HapticEffectStrategy HapticStrategy => HapticEffectStrategy.None;
+        public IntPtr HapticHandle => IntPtr.Zero;
+        public uint HapticFeatures => 0;
         public ushort VendorId => 0;
         public ushort ProductId => 0;
         public string DevicePath { get; private set; } = string.Empty;

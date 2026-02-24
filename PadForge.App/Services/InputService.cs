@@ -42,6 +42,7 @@ namespace PadForge.Services
         private readonly Dispatcher _dispatcher;
         private InputManager _inputManager;
         private DispatcherTimer _uiTimer;
+        private ForegroundMonitorService _foregroundMonitor;
         private bool _disposed;
 
         /// <summary>
@@ -113,6 +114,10 @@ namespace PadForge.Services
             // Subscribe to polling interval changes from the Settings UI.
             _mainVm.Settings.PropertyChanged += OnSettingsPropertyChanged;
 
+            // Create foreground monitor for auto-profile switching.
+            _foregroundMonitor = new ForegroundMonitorService();
+            _foregroundMonitor.ProfileSwitchRequired += OnProfileSwitchRequired;
+
             // Start engine background thread.
             _inputManager.Start();
 
@@ -145,6 +150,13 @@ namespace PadForge.Services
 
             // Unsubscribe from settings changes.
             _mainVm.Settings.PropertyChanged -= OnSettingsPropertyChanged;
+
+            // Dispose foreground monitor.
+            if (_foregroundMonitor != null)
+            {
+                _foregroundMonitor.ProfileSwitchRequired -= OnProfileSwitchRequired;
+                _foregroundMonitor = null;
+            }
 
             // Stop and dispose engine.
             if (_inputManager != null)
@@ -214,6 +226,9 @@ namespace PadForge.Services
 
             // ── Sync macro snapshots to engine ──
             SyncMacroSnapshots();
+
+            // ── Auto-profile switching (check foreground window) ──
+            _foregroundMonitor?.CheckForegroundWindow();
         }
 
         // ─────────────────────────────────────────────
@@ -1097,6 +1112,136 @@ namespace PadForge.Services
                 ushort buttons = _inputManager.CombinedXiStates[_recordingPadIndex].Buttons;
                 _recordedButtons |= buttons;
             }
+        }
+
+        // ─────────────────────────────────────────────
+        //  Profile switching
+        // ─────────────────────────────────────────────
+
+        /// <summary>
+        /// Saves the current runtime PadSettings and macros into a ProfileData snapshot.
+        /// Used to capture the current state before switching profiles.
+        /// </summary>
+        public ProfileData SnapshotCurrentProfile()
+        {
+            // Ensure ViewModel values are pushed to PadSettings first.
+            for (int i = 0; i < _mainVm.Pads.Count; i++)
+            {
+                var padVm = _mainVm.Pads[i];
+                var selected = padVm.SelectedMappedDevice;
+                if (selected != null && selected.InstanceGuid != Guid.Empty)
+                    SaveViewModelToPadSetting(padVm, selected.InstanceGuid);
+            }
+
+            var entries = new List<ProfileEntry>();
+            var padSettings = new List<PadSetting>();
+            var seen = new HashSet<string>();
+
+            lock (SettingsManager.UserSettings.SyncRoot)
+            {
+                foreach (var us in SettingsManager.UserSettings.Items)
+                {
+                    var ps = us.GetPadSetting();
+                    if (ps == null) continue;
+
+                    ps.UpdateChecksum();
+
+                    entries.Add(new ProfileEntry
+                    {
+                        InstanceGuid = us.InstanceGuid,
+                        MapTo = us.MapTo,
+                        PadSettingChecksum = ps.PadSettingChecksum
+                    });
+
+                    if (seen.Add(ps.PadSettingChecksum))
+                        padSettings.Add(ps.CloneDeep());
+                }
+            }
+
+            return new ProfileData
+            {
+                Entries = entries.ToArray(),
+                PadSettings = padSettings.ToArray()
+            };
+        }
+
+        /// <summary>
+        /// Loads a profile's PadSettings into the runtime state.
+        /// For each ProfileEntry, finds the matching UserSetting and swaps its PadSetting.
+        /// </summary>
+        private void ApplyProfile(ProfileData profile)
+        {
+            if (profile?.Entries == null || profile.PadSettings == null)
+                return;
+
+            lock (SettingsManager.UserSettings.SyncRoot)
+            {
+                foreach (var entry in profile.Entries)
+                {
+                    var us = SettingsManager.UserSettings.Items
+                        .FirstOrDefault(s => s.InstanceGuid == entry.InstanceGuid);
+                    if (us == null) continue;
+
+                    // Find the PadSetting template by checksum.
+                    var template = profile.PadSettings
+                        .FirstOrDefault(p => p.PadSettingChecksum == entry.PadSettingChecksum);
+                    if (template == null) continue;
+
+                    // Clone and apply.
+                    var ps = template.CloneDeep();
+                    us.SetPadSetting(ps);
+                }
+            }
+
+            // Reload ViewModels with new PadSettings.
+            for (int i = 0; i < _mainVm.Pads.Count; i++)
+            {
+                var padVm = _mainVm.Pads[i];
+                var selected = padVm.SelectedMappedDevice;
+                if (selected != null && selected.InstanceGuid != Guid.Empty)
+                    LoadPadSettingToViewModel(padVm, selected.InstanceGuid);
+            }
+        }
+
+        /// <summary>
+        /// Called by <see cref="ForegroundMonitorService"/> when the foreground
+        /// process matches a different profile. Runs on the UI thread.
+        /// </summary>
+        private void OnProfileSwitchRequired(string profileId)
+        {
+            // Save current state into the previously active profile.
+            var currentProfile = FindProfileById(SettingsManager.ActiveProfileId);
+            var snapshot = SnapshotCurrentProfile();
+            if (currentProfile != null)
+            {
+                currentProfile.Entries = snapshot.Entries;
+                currentProfile.PadSettings = snapshot.PadSettings;
+            }
+
+            // Switch to the target profile (or revert to default).
+            if (profileId != null)
+            {
+                var target = FindProfileById(profileId);
+                if (target != null)
+                {
+                    ApplyProfile(target);
+                    SettingsManager.ActiveProfileId = profileId;
+                    _mainVm.StatusText = $"Profile switched: {target.Name}";
+                }
+            }
+            else
+            {
+                // Revert to default (root) profile — null ID means use the current
+                // root-level settings. If we had a "default" snapshot, apply it.
+                SettingsManager.ActiveProfileId = null;
+                _mainVm.StatusText = "Profile switched: Default";
+            }
+        }
+
+        private static ProfileData FindProfileById(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            return SettingsManager.Profiles?.FirstOrDefault(p => p.Id == id);
         }
 
         // ─────────────────────────────────────────────
