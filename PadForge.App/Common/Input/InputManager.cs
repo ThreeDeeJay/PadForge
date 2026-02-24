@@ -30,8 +30,9 @@ namespace PadForge.Common.Input
         //  Constants
         // ─────────────────────────────────────────────
 
-        /// <summary>Target polling interval in milliseconds (~1000Hz).</summary>
-        private const int PollingIntervalMs = 1;
+        /// <summary>Target polling interval in milliseconds. Default 1ms (~1000Hz).
+        /// Higher values reduce CPU usage at the cost of input latency.</summary>
+        public int PollingIntervalMs { get; set; } = 1;
 
         /// <summary>Device re-enumeration interval in milliseconds (every 2 seconds).</summary>
         private const int EnumerationIntervalMs = 2000;
@@ -260,10 +261,6 @@ namespace PadForge.Common.Input
 
             try
             {
-                // Pre-calculate the target interval in high-resolution ticks.
-                // Stopwatch.Frequency is ticks per second (e.g. 10,000,000 on most PCs).
-                long targetTicks = Stopwatch.Frequency / 1000 * PollingIntervalMs;
-
                 var cycleTimer = new Stopwatch();
                 cycleTimer.Start();
 
@@ -274,6 +271,10 @@ namespace PadForge.Common.Input
 
                 while (_running)
                 {
+                    // Calculate target ticks each cycle so PollingIntervalMs can be
+                    // changed at runtime from the Settings UI.
+                    long targetTicks = Stopwatch.Frequency / 1000 * PollingIntervalMs;
+
                     cycleTimer.Restart();
 
                     try
@@ -309,13 +310,31 @@ namespace PadForge.Common.Input
                         RaiseError("Polling loop error", ex);
                     }
 
-                    // Spin-wait for the remainder of the 1ms interval.
-                    // Thread.SpinWait executes PAUSE instructions which hint to the
-                    // CPU to reduce power during the spin (more efficient than a
-                    // pure busy loop, ~1-3% of one core at 1000Hz).
-                    while (cycleTimer.ElapsedTicks < targetTicks)
+                    // Hybrid sleep/spin-wait for precise timing with low CPU usage.
+                    //
+                    // Strategy depends on how much time remains:
+                    //   - >1.5ms remaining: Thread.Sleep(1) — real sleep, near-zero CPU.
+                    //     With timeBeginPeriod(1), wakes in ~1.0-1.5ms.
+                    //   - >0ms remaining: Thread.SpinWait(1) — precise busy-wait using
+                    //     CPU PAUSE instructions for sub-ms accuracy.
+                    //
+                    // At PollingIntervalMs=1: mostly spin-wait (work takes ~0.3-0.5ms,
+                    //   ~0.5-0.7ms of spinning). CPU is ~1-3% of one core.
+                    // At PollingIntervalMs=2+: Thread.Sleep(1) absorbs the bulk of the
+                    //   wait, CPU drops to near-zero while maintaining accurate timing.
+                    long sleepThresholdTicks = Stopwatch.Frequency * 3 / 2000; // 1.5ms in ticks
+                    long remaining = targetTicks - cycleTimer.ElapsedTicks;
+                    while (remaining > 0)
                     {
-                        Thread.SpinWait(1);
+                        if (remaining > sleepThresholdTicks)
+                        {
+                            Thread.Sleep(1);
+                        }
+                        else
+                        {
+                            Thread.SpinWait(1);
+                        }
+                        remaining = targetTicks - cycleTimer.ElapsedTicks;
                     }
                 }
             }

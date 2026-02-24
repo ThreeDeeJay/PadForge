@@ -101,13 +101,17 @@ namespace PadForge.Services
             if (_inputManager != null)
                 return; // Already running.
 
-            // Create engine.
+            // Create engine with the configured polling interval.
             _inputManager = new InputManager();
+            _inputManager.PollingIntervalMs = _mainVm.Settings.PollingRateMs;
 
             // Subscribe to engine events (raised on background thread).
             _inputManager.DevicesUpdated += OnDevicesUpdated;
             _inputManager.FrequencyUpdated += OnFrequencyUpdated;
             _inputManager.ErrorOccurred += OnErrorOccurred;
+
+            // Subscribe to polling interval changes from the Settings UI.
+            _mainVm.Settings.PropertyChanged += OnSettingsPropertyChanged;
 
             // Start engine background thread.
             _inputManager.Start();
@@ -138,6 +142,9 @@ namespace PadForge.Services
                 _uiTimer.Tick -= UiTimer_Tick;
                 _uiTimer = null;
             }
+
+            // Unsubscribe from settings changes.
+            _mainVm.Settings.PropertyChanged -= OnSettingsPropertyChanged;
 
             // Stop and dispose engine.
             if (_inputManager != null)
@@ -687,6 +694,17 @@ namespace PadForge.Services
             {
                 _mainVm.StatusText = $"Error: {e.Message}";
             }));
+        }
+
+        /// <summary>
+        /// Propagates settings changes to the engine at runtime.
+        /// </summary>
+        private void OnSettingsPropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(SettingsViewModel.PollingRateMs) && _inputManager != null)
+            {
+                _inputManager.PollingIntervalMs = _mainVm.Settings.PollingRateMs;
+            }
         }
 
         // ─────────────────────────────────────────────

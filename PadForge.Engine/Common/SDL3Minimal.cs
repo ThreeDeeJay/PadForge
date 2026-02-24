@@ -288,6 +288,65 @@ namespace SDL3
         public static extern IntPtr SDL_GetGamepadJoystick(IntPtr gamepad);
 
         // ─────────────────────────────────────────────
+        //  Gamepad state polling (standardized layout)
+        //
+        //  SDL_GetGamepadAxis / SDL_GetGamepadButton read through SDL's
+        //  built-in gamecontrollerdb mapping layer. Any recognized device
+        //  (DualSense, DualShock, Switch Pro, etc.) is remapped to the
+        //  standardized Xbox-like layout automatically.
+        //
+        //  Axis enum (SDL_GamepadAxis):
+        //    LEFTX=0, LEFTY=1, RIGHTX=2, RIGHTY=3,
+        //    LEFT_TRIGGER=4, RIGHT_TRIGGER=5
+        //
+        //  Button enum (SDL_GamepadButton):
+        //    SOUTH/A=0, EAST/B=1, WEST/X=2, NORTH/Y=3,
+        //    BACK=4, GUIDE=5, START=6,
+        //    LEFT_STICK=7, RIGHT_STICK=8,
+        //    LEFT_SHOULDER=9, RIGHT_SHOULDER=10,
+        //    DPAD_UP=11, DPAD_DOWN=12, DPAD_LEFT=13, DPAD_RIGHT=14,
+        //    MISC1=15, RIGHT_PADDLE1=16, LEFT_PADDLE1=17,
+        //    RIGHT_PADDLE2=18, LEFT_PADDLE2=19, TOUCHPAD=20
+        // ─────────────────────────────────────────────
+
+        [DllImport(lib, CallingConvention = CallingConvention.Cdecl)]
+        public static extern short SDL_GetGamepadAxis(IntPtr gamepad, int axis);
+
+        [DllImport(lib, CallingConvention = CallingConvention.Cdecl, EntryPoint = "SDL_GetGamepadButton")]
+        [return: MarshalAs(UnmanagedType.U1)]
+        private static extern bool _SDL_GetGamepadButton(IntPtr gamepad, int button);
+
+        public static bool SDL_GetGamepadButton(IntPtr gamepad, int button) =>
+            _SDL_GetGamepadButton(gamepad, button);
+
+        // Gamepad axis indices (SDL_GamepadAxis enum).
+        public const int SDL_GAMEPAD_AXIS_LEFTX = 0;
+        public const int SDL_GAMEPAD_AXIS_LEFTY = 1;
+        public const int SDL_GAMEPAD_AXIS_RIGHTX = 2;
+        public const int SDL_GAMEPAD_AXIS_RIGHTY = 3;
+        public const int SDL_GAMEPAD_AXIS_LEFT_TRIGGER = 4;
+        public const int SDL_GAMEPAD_AXIS_RIGHT_TRIGGER = 5;
+        public const int SDL_GAMEPAD_AXIS_COUNT = 6;
+
+        // Gamepad button indices (SDL_GamepadButton enum).
+        public const int SDL_GAMEPAD_BUTTON_SOUTH = 0;   // A
+        public const int SDL_GAMEPAD_BUTTON_EAST = 1;    // B
+        public const int SDL_GAMEPAD_BUTTON_WEST = 2;    // X
+        public const int SDL_GAMEPAD_BUTTON_NORTH = 3;   // Y
+        public const int SDL_GAMEPAD_BUTTON_BACK = 4;
+        public const int SDL_GAMEPAD_BUTTON_GUIDE = 5;
+        public const int SDL_GAMEPAD_BUTTON_START = 6;
+        public const int SDL_GAMEPAD_BUTTON_LEFT_STICK = 7;
+        public const int SDL_GAMEPAD_BUTTON_RIGHT_STICK = 8;
+        public const int SDL_GAMEPAD_BUTTON_LEFT_SHOULDER = 9;
+        public const int SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER = 10;
+        public const int SDL_GAMEPAD_BUTTON_DPAD_UP = 11;
+        public const int SDL_GAMEPAD_BUTTON_DPAD_DOWN = 12;
+        public const int SDL_GAMEPAD_BUTTON_DPAD_LEFT = 13;
+        public const int SDL_GAMEPAD_BUTTON_DPAD_RIGHT = 14;
+        public const int SDL_GAMEPAD_BUTTON_COUNT = 21;
+
+        // ─────────────────────────────────────────────
         //  Joystick state polling
         // ─────────────────────────────────────────────
 

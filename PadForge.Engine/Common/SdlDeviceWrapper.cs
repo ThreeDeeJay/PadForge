@@ -129,15 +129,28 @@ namespace PadForge.Engine
 
             // Populate properties from the opened joystick handle.
             SdlInstanceId = SDL_GetJoystickID(Joystick);
-            NumAxes = SDL_GetNumJoystickAxes(Joystick);
-            NumButtons = SDL_GetNumJoystickButtons(Joystick);
-            NumHats = SDL_GetNumJoystickHats(Joystick);
             Name = SDL_GetJoystickName(Joystick);
             VendorId = SDL_GetJoystickVendor(Joystick);
             ProductId = SDL_GetJoystickProduct(Joystick);
             ProductVersion = SDL_GetJoystickProductVersion(Joystick);
             JoystickType = SDL_GetJoystickType(Joystick);
             DevicePath = SDL_GetJoystickPath(Joystick);
+
+            // When opened as a Gamepad, report the standardized layout counts
+            // so that GetDeviceObjects() and the UI reflect the remapped layout
+            // instead of the raw HID descriptor. This matches GetGamepadState().
+            if (GameController != IntPtr.Zero)
+            {
+                NumAxes = 6;     // LX, LY, LT, RX, RY, RT
+                NumButtons = 11; // A, B, X, Y, LB, RB, Back, Start, LS, RS, Guide
+                NumHats = 1;     // D-pad synthesized from gamepad buttons
+            }
+            else
+            {
+                NumAxes = SDL_GetNumJoystickAxes(Joystick);
+                NumButtons = SDL_GetNumJoystickButtons(Joystick);
+                NumHats = SDL_GetNumJoystickHats(Joystick);
+            }
 
             // SDL3 may return a raw VID/PID string (e.g., "0x16c0/0x05e1") for devices
             // not in its internal database. Fall back to the Windows HID product string.
@@ -202,6 +215,84 @@ namespace PadForge.Engine
             if (Joystick == IntPtr.Zero)
                 return null;
 
+            // When the device is opened as a Gamepad, use the gamepad API to read
+            // through SDL's built-in mapping layer (gamecontrollerdb). This remaps
+            // DualSense, DualShock, Switch Pro, etc. to the standardized Xbox layout
+            // so the same auto-mapping works for all recognized controllers.
+            if (GameController != IntPtr.Zero)
+                return GetGamepadState();
+
+            return GetJoystickState();
+        }
+
+        /// <summary>
+        /// Reads input through SDL's gamepad mapping layer. Produces a standardized
+        /// CustomInputState layout that matches CreateDefaultPadSetting:
+        ///   Axes: [0]=LX, [1]=LY, [2]=LT, [3]=RX, [4]=RY, [5]=RT
+        ///   Buttons: [0]=A, [1]=B, [2]=X, [3]=Y, [4]=LB, [5]=RB,
+        ///            [6]=Back, [7]=Start, [8]=LS, [9]=RS, [10]=Guide
+        ///   POV[0]: D-pad synthesized from gamepad D-pad buttons.
+        /// </summary>
+        private CustomInputState GetGamepadState()
+        {
+            var state = new CustomInputState();
+
+            // --- Axes ---
+            // Read standardized gamepad axes and reorder to match the auto-mapping layout:
+            //   CustomInputState Axis[0..5] = LX, LY, LT, RX, RY, RT
+            //   SDL gamepad axis enum       = LX(0), LY(1), RX(2), RY(3), LT(4), RT(5)
+
+            // Stick axes: signed -32768..32767 → unsigned 0..65535
+            short lx = SDL_GetGamepadAxis(GameController, SDL_GAMEPAD_AXIS_LEFTX);
+            short ly = SDL_GetGamepadAxis(GameController, SDL_GAMEPAD_AXIS_LEFTY);
+            short rx = SDL_GetGamepadAxis(GameController, SDL_GAMEPAD_AXIS_RIGHTX);
+            short ry = SDL_GetGamepadAxis(GameController, SDL_GAMEPAD_AXIS_RIGHTY);
+
+            state.Axis[0] = (ushort)(lx - short.MinValue);  // LX
+            state.Axis[1] = (ushort)(ly - short.MinValue);  // LY
+            state.Axis[3] = (ushort)(rx - short.MinValue);  // RX
+            state.Axis[4] = (ushort)(ry - short.MinValue);  // RY
+
+            // Trigger axes: gamepad API returns 0..32767 (0=released, 32767=full).
+            // Scale to 0..65535 unsigned to match the convention used by the mapping pipeline.
+            short lt = SDL_GetGamepadAxis(GameController, SDL_GAMEPAD_AXIS_LEFT_TRIGGER);
+            short rt = SDL_GetGamepadAxis(GameController, SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
+            state.Axis[2] = (int)(lt * 65535L / 32767);     // LT
+            state.Axis[5] = (int)(rt * 65535L / 32767);     // RT
+
+            // --- Buttons ---
+            // Reorder from SDL gamepad button enum to the auto-mapping layout:
+            //   [0]=A(South), [1]=B(East), [2]=X(West), [3]=Y(North),
+            //   [4]=LB, [5]=RB, [6]=Back, [7]=Start, [8]=LS, [9]=RS, [10]=Guide
+            state.Buttons[0] = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_SOUTH);
+            state.Buttons[1] = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_EAST);
+            state.Buttons[2] = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_WEST);
+            state.Buttons[3] = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_NORTH);
+            state.Buttons[4] = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_LEFT_SHOULDER);
+            state.Buttons[5] = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER);
+            state.Buttons[6] = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_BACK);
+            state.Buttons[7] = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_START);
+            state.Buttons[8] = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_LEFT_STICK);
+            state.Buttons[9] = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_RIGHT_STICK);
+            state.Buttons[10] = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_GUIDE);
+
+            // --- D-pad → POV[0] ---
+            // Synthesize a POV hat from the four D-pad buttons.
+            bool up = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_DPAD_UP);
+            bool down = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_DPAD_DOWN);
+            bool left = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_DPAD_LEFT);
+            bool right = SDL_GetGamepadButton(GameController, SDL_GAMEPAD_BUTTON_DPAD_RIGHT);
+            state.Povs[0] = DpadToCentidegrees(up, down, left, right);
+
+            return state;
+        }
+
+        /// <summary>
+        /// Reads raw joystick input (no gamepad remapping). Used for non-gamepad devices
+        /// and for devices not recognized in SDL's gamecontrollerdb.
+        /// </summary>
+        private CustomInputState GetJoystickState()
+        {
             var state = new CustomInputState();
 
             // --- Axes ---
@@ -503,6 +594,24 @@ namespace PadForge.Engine
                 SDL_HAT_LEFTUP => 31500,
                 _ => -1  // SDL_HAT_CENTERED or any other value
             };
+        }
+
+        /// <summary>
+        /// Converts four D-pad booleans to DirectInput-style centidegrees.
+        /// Used by <see cref="GetGamepadState"/> to synthesize a POV hat
+        /// from SDL gamepad D-pad buttons.
+        /// </summary>
+        public static int DpadToCentidegrees(bool up, bool down, bool left, bool right)
+        {
+            if (up && right) return 4500;
+            if (right && down) return 13500;
+            if (down && left) return 22500;
+            if (left && up) return 31500;
+            if (up) return 0;
+            if (right) return 9000;
+            if (down) return 18000;
+            if (left) return 27000;
+            return -1; // Centered
         }
 
         // ─────────────────────────────────────────────
