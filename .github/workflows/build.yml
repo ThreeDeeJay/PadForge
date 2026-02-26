@@ -6,7 +6,7 @@ env:
   Branch: ${{github.ref_name}}
   Platform: Any CPU
   Configuration: Release
-  Artifacts: PadForge.App/bin/Release/net8.0-windows/win-x64/publish/PadForge.exe
+  Artifacts: PadForge.App\bin\Any CPU\Release\net8.0-windows\win-x64\publish
   Title: PadForge
   Solution: PadForge.sln
 
@@ -33,21 +33,18 @@ jobs:
         echo "CommitCount=$(git rev-list --count HEAD)" >> $env:GITHUB_ENV
         echo "CommitDate=$(git show -s --date=format:'%Y-%m-%d' --format=%cd)" >> $env:GITHUB_ENV
 
-    - name: Restore .NET packages
-      run: dotnet restore "${{env.Solution}}"
-
     - name: Download dependencies
       run: |
         curl -L "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe" -o "PadForge.App\Resources\ViGEmBus_1.22.0_x64_x86_arm64.exe"
         curl -L "https://github.com/nefarius/HidHide/releases/download/v1.5.230.0/HidHide_1.5.230_x64.exe"         -o "PadForge.App\Resources\HidHide_1.5.230_x64.exe"
 
-    - name: List files
-      run: ls -R
+    - name: .NET Restore
+      run: dotnet restore "${{env.Solution}}"
 
-    - name: Build
+    - name: .NET Build
       run: dotnet build "${{env.Solution}}" -c "${{env.Configuration}}"
 
-    - name: Publish
+    - name: .NET Publish
       run: dotnet publish "${{github.event.repository.name}}.App/${{github.event.repository.name}}.App.csproj" -c "${{env.Configuration}}"
 
     - name: List files
