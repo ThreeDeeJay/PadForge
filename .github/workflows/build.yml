@@ -35,7 +35,13 @@ jobs:
 
     - name: Restore .NET packages
       run: dotnet restore "${{env.Solution}}"
-      
+
+    - name: Download dependencies
+      run: curl -L "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe" -o "PadForge.App\Resources\ViGEmBus_1.22.0_x64_x86_arm64.exe"
+
+    - name: List files
+      run: ls -R
+
     - name: Build
       run: dotnet build "${{env.Solution}}" -c "${{env.Configuration}}"
 
