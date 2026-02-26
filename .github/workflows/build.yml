@@ -38,12 +38,6 @@ jobs:
         curl -L "https://github.com/nefarius/ViGEmBus/releases/download/v1.22.0/ViGEmBus_1.22.0_x64_x86_arm64.exe" -o "PadForge.App\Resources\ViGEmBus_1.22.0_x64_x86_arm64.exe"
         curl -L "https://github.com/nefarius/HidHide/releases/download/v1.5.230.0/HidHide_1.5.230_x64.exe"         -o "PadForge.App\Resources\HidHide_1.5.230_x64.exe"
 
-    - name: .NET Restore
-      run: dotnet restore "${{env.Solution}}"
-
-    - name: .NET Build
-      run: dotnet build "${{env.Solution}}" -c "${{env.Configuration}}"
-
     - name: .NET Publish
       run: dotnet publish "${{github.event.repository.name}}.App/${{github.event.repository.name}}.App.csproj" -c "${{env.Configuration}}"
 
