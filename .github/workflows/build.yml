@@ -4,7 +4,7 @@ name: Build
 env:
   GH_TOKEN: ${{github.token}}
   Branch: ${{github.ref_name}}
-  Platform: x64
+  Platform: Any CPU
   Configuration: Release
   Artifacts: PadForge.App/bin/Release/net8.0-windows/win-x64/publish/PadForge.exe
   Title: PadForge
